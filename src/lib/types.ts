@@ -162,7 +162,7 @@ export interface SearchQueryParams {
 }
 
 export interface AIModelConfig {
-  provider: "groq" | "openrouter" | "huggingface" | "fallback";
+  provider: "groq" | "openrouter" | "huggingface" | "openai" | "gemini" | "fallback";
   modelName: string;
   apiKey?: string;
   temperature?: number;

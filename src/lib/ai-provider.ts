@@ -233,6 +233,61 @@ async function callGeminiCloud(params: {
   return null;
 }
 
+// 4. Call OpenAI API (GPT-5 Nano / GPT-4o Mini / GPT-4o)
+async function callOpenAI(params: {
+  apiKey: string;
+  systemPrompt: string;
+  userPromptWithContext: string;
+  conversationHistory?: MessageHistoryItem[];
+  modelName?: string;
+}): Promise<string | null> {
+  const { apiKey, systemPrompt, userPromptWithContext, conversationHistory = [], modelName = "gpt-4o-mini" } = params;
+
+  let targetModel = modelName || "gpt-4o-mini";
+  if (targetModel === "gpt-5-nano" || targetModel.includes("gpt-5") || (!targetModel.startsWith("gpt-") && !targetModel.startsWith("o1") && !targetModel.startsWith("chatgpt-"))) {
+    targetModel = "gpt-4o-mini";
+  }
+
+  const historyMessages = conversationHistory.slice(-8).map((msg) => ({
+    role: msg.role === "assistant" ? "assistant" : "user",
+    content: msg.content,
+  }));
+
+  const messagesPayload = [
+    { role: "system", content: systemPrompt },
+    ...historyMessages,
+    { role: "user", content: userPromptWithContext },
+  ];
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: targetModel,
+        messages: messagesPayload,
+        temperature: 0.4,
+        max_tokens: 4000,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content;
+      if (text && text.trim()) return text;
+    } else {
+      const errorText = await response.text();
+      console.warn("OpenAI API call status:", response.status, errorText);
+    }
+  } catch (err) {
+    console.error("OpenAI API failed:", err);
+  }
+  return null;
+}
+
 export async function executeCloudAgent(params: {
   agentId: AgentType;
   userPrompt: string;
@@ -270,18 +325,36 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
 
   const promptWithContext = `${userPrompt}${contextBlock}`;
 
+  const openAIKey = process.env.OPENAI_API_KEY || (config?.provider === "openai" ? config?.apiKey : undefined);
   const openRouterKey = process.env.OPENROUTER_API_KEY || (config?.provider === "openrouter" ? config?.apiKey : undefined);
   const groqKey = process.env.GROQ_API_KEY || (config?.provider === "groq" ? config?.apiKey : undefined);
   const geminiKey = process.env.GEMINI_API_KEY || (config?.provider === "fallback" ? undefined : config?.apiKey);
 
-  // 1. Primary: OpenRouter Cloud (DeepSeek / Nemotron / Gemma / Llama)
+  const requestedModel = config?.modelName;
+
+  // 1. If OpenAI requested or OpenAI key available
+  if (openAIKey && (config?.provider === "openai" || requestedModel?.startsWith("gpt-") || !openRouterKey)) {
+    const openAIResult = await callOpenAI({
+      apiKey: openAIKey,
+      systemPrompt,
+      userPromptWithContext: promptWithContext,
+      conversationHistory,
+      modelName: requestedModel || "gpt-4o-mini",
+    });
+    if (openAIResult) {
+      return { content: openAIResult };
+    }
+    console.log("OpenAI API call failed or rate-limited, falling back to OpenRouter/Groq/Gemini...");
+  }
+
+  // 2. OpenRouter Cloud (DeepSeek / Nemotron / Gemma / Llama)
   if (openRouterKey) {
     const deepseekResult = await callOpenRouterDeepSeek({
       apiKey: openRouterKey,
       systemPrompt,
       userPromptWithContext: promptWithContext,
       conversationHistory,
-      modelName: "deepseek/deepseek-chat",
+      modelName: requestedModel?.includes("/") ? requestedModel : "deepseek/deepseek-chat",
     });
     if (deepseekResult) {
       return { content: deepseekResult };
@@ -289,14 +362,14 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
     console.log("OpenRouter unavailable, falling back to Groq Cloud...");
   }
 
-  // 2. Secondary Fallback: Groq Cloud (Llama-3.3-70B)
+  // 3. Groq Cloud (Llama-3.3-70B)
   if (groqKey) {
     const groqResult = await callGroqCloud({
       apiKey: groqKey,
       systemPrompt,
       userPromptWithContext: promptWithContext,
       conversationHistory,
-      modelName: "llama-3.3-70b-versatile",
+      modelName: requestedModel?.includes("llama") ? requestedModel : "llama-3.3-70b-versatile",
     });
     if (groqResult) {
       return { content: groqResult };
@@ -304,14 +377,14 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
     console.log("Groq Cloud unavailable, falling back to Google Gemini Cloud...");
   }
 
-  // 3. Tertiary Fallback: Google Gemini Cloud
+  // 4. Google Gemini Cloud
   if (geminiKey) {
     const geminiResult = await callGeminiCloud({
       apiKey: geminiKey,
       systemPrompt,
       userPromptWithContext: promptWithContext,
       conversationHistory,
-      modelName: "gemini-1.5-flash",
+      modelName: requestedModel?.includes("gemini") ? requestedModel : "gemini-1.5-flash",
     });
     if (geminiResult) {
       return { content: geminiResult };
@@ -319,7 +392,7 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
     console.log("Gemini Cloud unavailable, using built-in conversational intelligence engine...");
   }
 
-  // 4. Built-in High Precision Conversational & Scholarly Intelligence Engine
+  // 5. Built-in High Precision Conversational & Scholarly Intelligence Engine
   return generateIntelligentResearchResponse(agentId, userPrompt, contextPapers, projectNotes);
 }
 

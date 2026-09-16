@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       projectNotes = [],
       conversationHistory = [],
       config,
+      selectedDatabases,
     }: {
       agentId: AgentType;
       userPrompt: string;
@@ -21,20 +22,24 @@ export async function POST(req: NextRequest) {
       projectNotes?: string[];
       conversationHistory?: MessageHistoryItem[];
       config?: AIModelConfig;
+      selectedDatabases?: string[];
     } = body;
 
-    if (!userPrompt || !agentId) {
-      return NextResponse.json({ error: "agentId and userPrompt are required" }, { status: 400 });
+    if (!userPrompt || typeof userPrompt !== "string" || !userPrompt.trim()) {
+      return NextResponse.json({ error: "userPrompt is required" }, { status: 400 });
     }
 
+    const resolvedAgentId: AgentType = agentId || "academic_chat";
+
     const brainResult = await executeAutonomousBrain({
-      agentId,
-      userPrompt,
+      agentId: resolvedAgentId,
+      userPrompt: userPrompt.trim(),
       attachedPapers: contextPapers,
       attachedDocIds,
       projectNotes,
       conversationHistory,
       config,
+      selectedDatabases,
     });
 
     return NextResponse.json({

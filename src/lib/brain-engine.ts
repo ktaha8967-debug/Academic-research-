@@ -23,6 +23,7 @@ export interface BrainExecutionContext {
   projectNotes?: string[];
   conversationHistory?: import("./types").MessageHistoryItem[];
   config?: AIModelConfig;
+  selectedDatabases?: string[];
 }
 
 export interface BrainExecutionResult {
@@ -118,6 +119,9 @@ export async function executeAutonomousBrain(context: BrainExecutionContext): Pr
 
       const liveResults = await searchAcademicPapers({
         query: cleanedQuery,
+        databases: (context.selectedDatabases && context.selectedDatabases.length > 0)
+          ? (context.selectedDatabases as any)
+          : ["openalex", "arxiv", "pubmed", "europepmc", "crossref", "semanticscholar"],
         limit: 6,
       });
 

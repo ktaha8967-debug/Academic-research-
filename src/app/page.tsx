@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ChatSidebar } from "@/components/chatgpt/ChatSidebar";
 import { ChatNavbar } from "@/components/chatgpt/ChatNavbar";
 import { ChatInterface } from "@/components/chatgpt/ChatInterface";
+import { AgentOutputPanel } from "@/components/chatgpt/AgentOutputPanel";
 import { PaperSearchModal } from "@/components/PaperSearchModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import {
@@ -18,6 +19,7 @@ import { AgentType, AcademicPaper, MessageHistoryItem, AIModelConfig } from "@/l
 
 export default function ChatGPTDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatIdState] = useState<string>("");
@@ -27,8 +29,8 @@ export default function ChatGPTDashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [aiConfig, setAiConfig] = useState<AIModelConfig>({
-    provider: "fallback",
-    modelName: "llama-3.3-70b-versatile",
+    provider: "openai",
+    modelName: "gpt-4o-mini",
   });
 
   // Dark mode effect
@@ -119,8 +121,14 @@ export default function ChatGPTDashboard() {
     saveAllChats(updatedChats);
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (
+    text: string,
+    customConfig?: AIModelConfig,
+    customDatabases?: string[]
+  ) => {
     if (!text.trim() || loading) return;
+
+    const configToUse = customConfig || aiConfig;
 
     // Auto update chat title from first user query
     let newTitle = activeChat.title;
@@ -152,19 +160,20 @@ export default function ChatGPTDashboard() {
 
     setLoading(true);
     const isAcademicWorkflow = activeChat.attachedPapers.length > 0 || (activeChat.agentId && activeChat.agentId !== "academic_chat");
-    setExecutionStep(isAcademicWorkflow ? "Synthesizing research context..." : "Thinking...");
+    setExecutionStep(isAcademicWorkflow ? "Synthesizing research across 480M+ papers..." : "Thinking...");
 
     try {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentId: activeChat.agentId,
+          agentId: activeChat.agentId || "academic_chat",
           userPrompt: text.trim(),
-          contextPapers: activeChat.attachedPapers,
-          projectNotes: activeChat.notes,
-          conversationHistory: activeChat.messages,
-          config: aiConfig,
+          contextPapers: activeChat.attachedPapers || [],
+          projectNotes: activeChat.notes || [],
+          conversationHistory: activeChat.messages || [],
+          config: configToUse,
+          selectedDatabases: customDatabases,
         }),
       });
 
@@ -177,7 +186,7 @@ export default function ChatGPTDashboard() {
           role: "assistant",
           content: data.content,
           structuredData: data.structuredData,
-          sources: activeChat.attachedPapers.slice(0, data.sourcesUsed || 0),
+          sources: (data.sources && data.sources.length > 0) ? data.sources : activeChat.attachedPapers.slice(0, data.sourcesUsed || 0),
           timestamp: data.timestamp,
         };
 
@@ -243,9 +252,11 @@ export default function ChatGPTDashboard() {
     handleSendMessage(promptText);
   };
 
+  const latestAssistantMessage = [...activeChat.messages].reverse().find((m) => m.role === "assistant");
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-      {/* ChatGPT Left Sidebar */}
+      {/* 1. Left Sidebar: PRD Agents & Chat History */}
       <ChatSidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -257,9 +268,9 @@ export default function ChatGPTDashboard() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* Main Chat Container */}
+      {/* 2. Middle Column: Chat Conversation Stream & Curved Input */}
       <div className={`flex flex-1 flex-col h-full overflow-hidden transition-all duration-300 ${sidebarOpen ? "sm:pl-64" : ""}`}>
-        {/* ChatGPT Top Navbar */}
+        {/* Top Navbar */}
         <ChatNavbar
           activeAgent={activeChat.agentId}
           onSelectAgent={handleSelectAgent}
@@ -270,7 +281,7 @@ export default function ChatGPTDashboard() {
           attachedPapersCount={activeChat.attachedPapers.length}
         />
 
-        {/* ChatGPT Message Stream & Floating Input Bar */}
+        {/* Message Stream & Floating Input Bar */}
         <ChatInterface
           agentId={activeChat.agentId}
           messages={activeChat.messages}
@@ -282,8 +293,22 @@ export default function ChatGPTDashboard() {
           onRemovePaper={handleRemovePaper}
           onChainAgent={handleChainAgent}
           aiConfig={aiConfig}
+          onUpdateAiConfig={setAiConfig}
+          isRightPanelOpen={rightPanelOpen}
+          onToggleRightPanel={() => setRightPanelOpen(!rightPanelOpen)}
         />
       </div>
+
+      {/* 3. Right Column: Live Agent Action & Artifacts Panel */}
+      <AgentOutputPanel
+        activeAgentId={activeChat.agentId}
+        lastAssistantMessage={latestAssistantMessage}
+        attachedPapers={activeChat.attachedPapers}
+        isOpen={rightPanelOpen}
+        onToggle={() => setRightPanelOpen(!rightPanelOpen)}
+        onOpenSearchPapers={() => setIsPaperSearchOpen(true)}
+        aiConfig={aiConfig}
+      />
 
       {/* Modals */}
       <PaperSearchModal

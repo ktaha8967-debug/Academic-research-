@@ -33,19 +33,54 @@ import {
   Scale,
   DollarSign,
   Download,
+  ChevronDown,
+  Database,
+  SlidersHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
+  CheckSquare,
+  Square,
+  Bot,
 } from "lucide-react";
+
+export interface DBSelectionItem {
+  id: string;
+  name: string;
+  count: string;
+  desc: string;
+}
+
+export const AVAILABLE_DATABASES: DBSelectionItem[] = [
+  { id: "openalex", name: "OpenAlex", count: "250M+", desc: "Citations, authors & scholarly concepts" },
+  { id: "arxiv", name: "arXiv", count: "2.4M+", desc: "Physics, Math, AI & CS preprints" },
+  { id: "pubmed", name: "PubMed", count: "36M+", desc: "Biomedical, clinical & life sciences" },
+  { id: "europepmc", name: "Europe PMC", count: "43M+", desc: "Open-access life science articles" },
+  { id: "crossref", name: "Crossref", count: "150M+", desc: "Official publisher DOIs & metadata" },
+  { id: "semanticscholar", name: "Semantic Scholar", count: "215M+", desc: "AI-generated TLDRs & citation graph" },
+];
+
+export const AVAILABLE_MODELS = [
+  { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai" as const, desc: "OpenAI GPT-4o Mini · Ultra-fast & smart", tag: "Recommended" },
+  { id: "gpt-4o", name: "GPT-4o", provider: "openai" as const, desc: "OpenAI GPT-4o · Advanced scholarly reasoning", tag: "Flagship" },
+  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as const, desc: "Google Agent SDK · Free high speed", tag: "Google Free" },
+  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "groq" as const, desc: "Groq Fast Inference · Deep reasoning", tag: "Groq Ultra" },
+  { id: "deepseek/deepseek-chat", name: "DeepSeek V3", provider: "openrouter" as const, desc: "DeepSeek 671B · OpenRouter architecture", tag: "SOTA" },
+];
 
 interface ChatInterfaceProps {
   agentId: AgentType;
   messages: MessageHistoryItem[];
   attachedPapers: AcademicPaper[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, customConfig?: AIModelConfig, customDatabases?: string[]) => void;
   loading: boolean;
   executionStep: string;
   onOpenSearchPapers: () => void;
   onRemovePaper: (id: string) => void;
   onChainAgent: (agentId: AgentType, prompt: string) => void;
   aiConfig: AIModelConfig;
+  onUpdateAiConfig?: (config: AIModelConfig) => void;
+  isRightPanelOpen?: boolean;
+  onToggleRightPanel?: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -98,18 +133,52 @@ export function ChatInterface({
   onRemovePaper,
   onChainAgent,
   aiConfig,
+  onUpdateAiConfig,
+  isRightPanelOpen,
+  onToggleRightPanel,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deepSearchActive, setDeepSearchActive] = useState(true);
   const [deepReasoningActive, setDeepReasoningActive] = useState(false);
 
+  // Model & DB Selector state
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    aiConfig.modelName === "gpt-5-nano" ? "gpt-4o-mini" : (aiConfig.modelName || "gpt-4o-mini")
+  );
+  const [selectedDatabases, setSelectedDatabases] = useState<string[]>([
+    "openalex",
+    "arxiv",
+    "pubmed",
+    "europepmc",
+    "crossref",
+    "semanticscholar",
+  ]);
+  const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
+  const [isDbPickerOpen, setIsDbPickerOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelPickerRef = useRef<HTMLDivElement>(null);
+  const dbPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Close popovers on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modelPickerRef.current && !modelPickerRef.current.contains(event.target as Node)) {
+        setIsModelPickerOpen(false);
+      }
+      if (dbPickerRef.current && !dbPickerRef.current.contains(event.target as Node)) {
+        setIsDbPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -124,10 +193,35 @@ export function ChatInterface({
       if (deepReasoningActive) {
         finalPrompt = `[DEEP REASONING & MATHEMATICAL DERIVATIONS ENABLED]\n${finalPrompt}`;
       }
-      onSendMessage(finalPrompt);
+      const modelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId);
+      const customConfig: AIModelConfig = {
+        provider: modelObj?.provider || "openai",
+        modelName: selectedModelId,
+      };
+      if (onUpdateAiConfig) {
+        onUpdateAiConfig(customConfig);
+      }
+      onSendMessage(finalPrompt, customConfig, selectedDatabases);
       setInputText("");
+      setIsModelPickerOpen(false);
+      setIsDbPickerOpen(false);
     }
   };
+
+  const toggleDatabase = (dbId: string) => {
+    if (selectedDatabases.includes(dbId)) {
+      if (selectedDatabases.length === 1) return; // Keep at least one
+      setSelectedDatabases(selectedDatabases.filter((id) => id !== dbId));
+    } else {
+      setSelectedDatabases([...selectedDatabases, dbId]);
+    }
+  };
+
+  const selectAllDatabases = () => {
+    setSelectedDatabases(AVAILABLE_DATABASES.map((d) => d.id));
+  };
+
+  const selectedModelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[0];
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -504,36 +598,153 @@ export function ChatInterface({
             />
 
             {/* Bottom Toolbar & Action Switches */}
-            <div className="flex items-center justify-between pt-1 px-1 border-t border-border/40 mt-1">
-              <div className="flex items-center gap-1.5 overflow-x-auto">
-                {/* Attach Paper */}
+            <div className="flex items-center justify-between pt-1.5 px-1 border-t border-border/40 mt-1 gap-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                {/* 1. Model Selector Dropdown */}
+                <div className="relative" ref={modelPickerRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModelPickerOpen(!isModelPickerOpen);
+                      setIsDbPickerOpen(false);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-all shrink-0 shadow-2xs"
+                    title="Select AI Model"
+                  >
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    <span>{selectedModelObj.name}</span>
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </button>
+
+                  {/* Model Selector Popover */}
+                  {isModelPickerOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-border bg-card/95 backdrop-blur-xl p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="px-2 py-1.5 border-b border-border/50 flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">Select AI Model</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">5 Engines Active</span>
+                      </div>
+                      <div className="space-y-1 mt-1 max-h-56 overflow-y-auto">
+                        {AVAILABLE_MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModelId(m.id);
+                              setIsModelPickerOpen(false);
+                            }}
+                            className={`w-full text-left p-2 rounded-xl text-xs transition-all flex items-start justify-between gap-2 ${
+                              selectedModelId === m.id
+                                ? "bg-primary/15 border border-primary/30 text-primary font-bold"
+                                : "hover:bg-muted text-foreground/90"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold">{m.name}</span>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-muted border border-border text-muted-foreground font-mono">
+                                  {m.tag}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{m.desc}</p>
+                            </div>
+                            {selectedModelId === m.id && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Database Multi-Picker Popover */}
+                <div className="relative" ref={dbPickerRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDbPickerOpen(!isDbPickerOpen);
+                      setIsModelPickerOpen(false);
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all shrink-0 ${
+                      selectedDatabases.length === AVAILABLE_DATABASES.length
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold"
+                        : "bg-muted/80 text-foreground border border-border"
+                    }`}
+                    title="Select connected academic databases"
+                  >
+                    <Database className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>
+                      {selectedDatabases.length === AVAILABLE_DATABASES.length
+                        ? "All 6 DBs (480M+)"
+                        : `${selectedDatabases.length} DBs Connected`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </button>
+
+                  {/* Database Multi-Select Popover */}
+                  {isDbPickerOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 w-80 rounded-2xl border border-border bg-card/95 backdrop-blur-xl p-2.5 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="px-1.5 py-1 border-b border-border/50 flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-foreground">Select Academic Databases</span>
+                        <div className="flex items-center gap-1 text-[11px]">
+                          <button
+                            onClick={selectAllDatabases}
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            Select All
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1 max-h-60 overflow-y-auto">
+                        {AVAILABLE_DATABASES.map((db) => {
+                          const isSelected = selectedDatabases.includes(db.id);
+                          return (
+                            <div
+                              key={db.id}
+                              onClick={() => toggleDatabase(db.id)}
+                              className={`p-2 rounded-xl text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
+                                isSelected
+                                  ? "bg-primary/10 border border-primary/25 text-foreground"
+                                  : "hover:bg-muted/60 text-muted-foreground opacity-70"
+                              }`}
+                            >
+                              <div className="mt-0.5 text-primary shrink-0">
+                                {isSelected ? (
+                                  <CheckSquare className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className={`font-semibold text-xs ${isSelected ? "text-foreground font-bold" : ""}`}>
+                                    {db.name}
+                                  </span>
+                                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                    {db.count}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{db.desc}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Attach Paper */}
                 <button
                   onClick={onOpenSearchPapers}
-                  className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                   title="Search and Attach 480M+ Papers"
                 >
                   <Plus className="h-3.5 w-3.5 text-primary" />
-                  <span>Attach Paper</span>
+                  <span>Attach</span>
                 </button>
 
-                {/* Deep Search Toggle */}
-                <button
-                  onClick={() => setDeepSearchActive(!deepSearchActive)}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                    deepSearchActive
-                      ? "bg-primary/15 text-primary border border-primary/30 font-bold"
-                      : "bg-muted/40 text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Search 480M+ OpenAlex, arXiv, PubMed papers"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>480M+ DBs</span>
-                </button>
-
-                {/* Deep Reasoning Toggle */}
+                {/* 4. Deep Reasoning Toggle */}
                 <button
                   onClick={() => setDeepReasoningActive(!deepReasoningActive)}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all shrink-0 ${
                     deepReasoningActive
                       ? "bg-indigo-500/15 text-indigo-500 border border-indigo-500/30 font-bold"
                       : "bg-muted/40 text-muted-foreground hover:text-foreground"
@@ -541,23 +752,41 @@ export function ChatInterface({
                   title="Enable step-by-step mathematical reasoning"
                 >
                   <BrainCircuit className="h-3.5 w-3.5" />
-                  <span>Deep Reasoning</span>
+                  <span>Reasoning</span>
                 </button>
               </div>
 
-              {/* Send Button */}
-              <button
-                onClick={handleSend}
-                disabled={!inputText.trim() || loading}
-                className={`rounded-full p-2.5 transition-all shrink-0 ${
-                  inputText.trim() && !loading
-                    ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 scale-105"
-                    : "bg-muted text-muted-foreground/40 cursor-not-allowed"
-                }`}
-                title="Send Message"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+              {/* Right Side: Right Panel Toggle & Send Button */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onToggleRightPanel && (
+                  <button
+                    type="button"
+                    onClick={onToggleRightPanel}
+                    className={`p-2 rounded-full border transition-all text-xs ${
+                      isRightPanelOpen
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "bg-muted/60 border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                    title={isRightPanelOpen ? "Close Live Artifacts Panel" : "Open Live Artifacts Panel"}
+                  >
+                    {isRightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                  </button>
+                )}
+
+                {/* Send Button */}
+                <button
+                  onClick={handleSend}
+                  disabled={!inputText.trim() || loading}
+                  className={`rounded-full p-2.5 transition-all shrink-0 ${
+                    inputText.trim() && !loading
+                      ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 scale-105"
+                      : "bg-muted text-muted-foreground/40 cursor-not-allowed"
+                  }`}
+                  title="Send Message"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
