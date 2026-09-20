@@ -241,10 +241,16 @@ async function callOpenAI(params: {
   conversationHistory?: MessageHistoryItem[];
   modelName?: string;
 }): Promise<string | null> {
-  const { apiKey, systemPrompt, userPromptWithContext, conversationHistory = [], modelName = "gpt-4o-mini" } = params;
+  const { apiKey, systemPrompt, userPromptWithContext, conversationHistory = [], modelName = "academic-pro" } = params;
 
-  let targetModel = modelName || "gpt-4o-mini";
-  if (targetModel === "gpt-5-nano" || targetModel.includes("gpt-5") || (!targetModel.startsWith("gpt-") && !targetModel.startsWith("o1") && !targetModel.startsWith("chatgpt-"))) {
+  let targetModel = "gpt-4o-mini";
+  const m = (modelName || "").toLowerCase();
+
+  if (m.includes("pro") || m.includes("flagship") || m === "gpt-4o") {
+    targetModel = "gpt-4o";
+  } else if (m.includes("max") || m.includes("deepseek") || m.includes("r1") || m.includes("o1")) {
+    targetModel = "gpt-4o";
+  } else {
     targetModel = "gpt-4o-mini";
   }
 
@@ -330,16 +336,17 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
   const groqKey = process.env.GROQ_API_KEY || (config?.provider === "groq" ? config?.apiKey : undefined);
   const geminiKey = process.env.GEMINI_API_KEY || (config?.provider === "fallback" ? undefined : config?.apiKey);
 
-  const requestedModel = config?.modelName;
+  const requestedModel = config?.modelName || "academic-pro";
+  const reqLower = requestedModel.toLowerCase();
 
   // 1. If OpenAI requested or OpenAI key available
-  if (openAIKey && (config?.provider === "openai" || requestedModel?.startsWith("gpt-") || !openRouterKey)) {
+  if (openAIKey) {
     const openAIResult = await callOpenAI({
       apiKey: openAIKey,
       systemPrompt,
       userPromptWithContext: promptWithContext,
       conversationHistory,
-      modelName: requestedModel || "gpt-4o-mini",
+      modelName: requestedModel,
     });
     if (openAIResult) {
       return { content: openAIResult };
@@ -347,14 +354,14 @@ Always deliver mathematically sound, scientifically rigorous, deeply structured,
     console.log("OpenAI API call failed or rate-limited, falling back to OpenRouter/Groq/Gemini...");
   }
 
-  // 2. OpenRouter Cloud (DeepSeek / Nemotron / Gemma / Llama)
+  // 2. OpenRouter Cloud (AcademicAI Max / DeepSeek)
   if (openRouterKey) {
     const deepseekResult = await callOpenRouterDeepSeek({
       apiKey: openRouterKey,
       systemPrompt,
       userPromptWithContext: promptWithContext,
       conversationHistory,
-      modelName: requestedModel?.includes("/") ? requestedModel : "deepseek/deepseek-chat",
+      modelName: reqLower.includes("max") ? "deepseek/deepseek-r1:free" : "deepseek/deepseek-chat",
     });
     if (deepseekResult) {
       return { content: deepseekResult };

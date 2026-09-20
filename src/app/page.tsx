@@ -30,7 +30,7 @@ export default function ChatGPTDashboard() {
 
   const [aiConfig, setAiConfig] = useState<AIModelConfig>({
     provider: "openai",
-    modelName: "gpt-4o-mini",
+    modelName: "academic-pro",
   });
 
   // Dark mode effect

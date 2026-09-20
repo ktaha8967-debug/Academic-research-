@@ -372,7 +372,13 @@ export function AgentOutputPanel({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Inference Model:</span>
-                  <span className="font-semibold text-foreground">{aiConfig.modelName || "GPT-5 Nano / Llama 3.3 70B"}</span>
+                  <span className="font-semibold text-foreground">
+                    {aiConfig.modelName?.includes("max")
+                      ? "AcademicAI Max"
+                      : aiConfig.modelName?.includes("fast") || aiConfig.modelName?.includes("basic")
+                      ? "AcademicAI Basic"
+                      : "AcademicAI Pro"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Confidence Score:</span>

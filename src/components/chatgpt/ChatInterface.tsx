@@ -60,11 +60,9 @@ export const AVAILABLE_DATABASES: DBSelectionItem[] = [
 ];
 
 export const AVAILABLE_MODELS = [
-  { id: "gpt-4o-mini", name: "Fast (GPT-4o Mini)", provider: "openai" as const, desc: "Ultra-fast literature indexing & instant Q&A", tag: "Fast" },
-  { id: "gpt-4o", name: "Pro (GPT-4o)", provider: "openai" as const, desc: "Deep scholarly synthesis & publication-grade reasoning", tag: "Pro" },
-  { id: "deepseek/deepseek-chat", name: "Max (DeepSeek V3 / R1)", provider: "openrouter" as const, desc: "Exhaustive multi-hop academic reasoning & audit", tag: "Max" },
-  { id: "llama-3.3-70b-versatile", name: "Groq Llama 3.3 70B", provider: "groq" as const, desc: "Ultra-fast open-source cloud inference", tag: "Groq Ultra" },
-  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as const, desc: "Google Agent SDK 1M token context window", tag: "Google Free" },
+  { id: "academic-fast", name: "AcademicAI Basic", provider: "openai" as const, desc: "AcademicAI Basic · Ultra-fast literature indexing & instant Q&A", tag: "Basic" },
+  { id: "academic-pro", name: "AcademicAI Pro", provider: "openai" as const, desc: "AcademicAI Pro · Deep scholarly synthesis & publication-grade reasoning", tag: "Pro" },
+  { id: "academic-max", name: "AcademicAI Max", provider: "openrouter" as const, desc: "AcademicAI Max · Exhaustive multi-hop academic reasoning & audit", tag: "Max" },
 ];
 
 interface ChatInterfaceProps {
@@ -144,7 +142,7 @@ export function ChatInterface({
 
   // Model & DB Selector state
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    aiConfig.modelName === "gpt-5-nano" ? "gpt-4o-mini" : (aiConfig.modelName || "gpt-4o-mini")
+    aiConfig.modelName || "academic-pro"
   );
   const [selectedDatabases, setSelectedDatabases] = useState<string[]>([
     "openalex",
