@@ -501,6 +501,34 @@ export function ChatSidebar({
         )}
       </div>
 
+      {/* Reference Managers (Zotero & Mendeley) Integration Bar */}
+      <div className="px-3 py-2 border-t border-border/60 bg-muted/10 text-[11px]">
+        <div className="flex items-center justify-between mb-1.5 text-muted-foreground font-semibold">
+          <span className="uppercase tracking-wider text-[10px] text-muted-foreground/80">Reference Managers</span>
+          <span className="text-[10px] text-emerald-500 font-mono font-bold">2 Synced</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="flex items-center justify-between p-1.5 rounded-lg bg-card border border-border/80 text-[11px]">
+            <span className="font-bold text-foreground flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              Zotero
+            </span>
+            <span className="text-[9px] text-emerald-500 font-semibold px-1 py-0.2 rounded bg-emerald-500/10">
+              Active
+            </span>
+          </div>
+          <div className="flex items-center justify-between p-1.5 rounded-lg bg-card border border-border/80 text-[11px]">
+            <span className="font-bold text-foreground flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              Mendeley
+            </span>
+            <span className="text-[9px] text-emerald-500 font-semibold px-1 py-0.2 rounded bg-emerald-500/10">
+              Active
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* User Profile & SaaS Settings Footer */}
       <div className="p-3 border-t border-border/70 bg-muted/20">
         <Link
@@ -514,7 +542,7 @@ export function ChatSidebar({
             <div>
               <p className="font-bold text-foreground text-xs leading-none">Researcher Workspace</p>
               <span className="text-[10px] text-emerald-500 font-semibold mt-0.5 block">
-                GPT-5 Nano &bull; Free Cloud
+                GPT-4o Mini &bull; Free Cloud
               </span>
             </div>
           </div>

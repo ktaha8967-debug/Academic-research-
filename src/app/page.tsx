@@ -182,11 +182,12 @@ export default function ChatGPTDashboard() {
       if (data.success) {
         const assistantMsg: MessageHistoryItem = {
           id: Math.random().toString(36).substring(7),
-          agentId: activeChat.agentId,
+          agentId: activeChat.agentId || "academic_chat",
           role: "assistant",
           content: data.content,
           structuredData: data.structuredData,
-          sources: (data.sources && data.sources.length > 0) ? data.sources : activeChat.attachedPapers.slice(0, data.sourcesUsed || 0),
+          sources: (data.sources && data.sources.length > 0) ? data.sources : (activeChat.attachedPapers || []).slice(0, data.sourcesUsed || 0),
+          followUpQuestions: data.followUpQuestions,
           timestamp: data.timestamp,
         };
 

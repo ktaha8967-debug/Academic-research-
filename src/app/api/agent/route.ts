@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      agentId,
+      agentId: resolvedAgentId,
       intent: brainResult.intent,
       content: brainResult.content,
       structuredData: brainResult.structuredData,
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       referencedDocs: brainResult.referencedDocs,
       executionTimeMs: brainResult.executionTimeMs,
       confidenceScore: brainResult.confidenceScore,
+      followUpQuestions: brainResult.followUpQuestions,
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {

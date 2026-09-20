@@ -35,6 +35,71 @@ export interface BrainExecutionResult {
   executionTimeMs: number;
   confidenceScore: number;
   structuredData?: any;
+  followUpQuestions?: string[];
+}
+
+export function generateFollowUpQuestions(
+  agentId: AgentType,
+  userPrompt: string,
+  papers: AcademicPaper[],
+  docs: UserDocument[]
+): string[] {
+  const clean = userPrompt.toLowerCase();
+
+  if (docs.length > 0 || clean.includes("paper") || clean.includes("document") || clean.includes("summarize")) {
+    return [
+      "Summarize its core methodology and empirical datasets",
+      "What are the main limitations and open research questions?",
+      "Extract ready-to-use BibTeX citation and APA reference",
+      "How does this work compare against contemporary baselines?",
+    ];
+  }
+
+  switch (agentId) {
+    case "mock_peer_review":
+      return [
+        "Draft a diplomatic point-by-point rebuttal letter for Reviewer 2",
+        "Generate a revised Section 3 addressing methodological rigor",
+        "Suggest missing empirical benchmarks to strengthen the submission",
+      ];
+    case "find_papers":
+    case "literature_overview":
+      return [
+        "Synthesize these findings into a comparative PRISMA matrix",
+        "Identify the top 3 unexplored research gaps from these papers",
+        "Formulate 4 publication-worthy research hypotheses ($H_1, H_0$)",
+      ];
+    case "research_gaps":
+      return [
+        "Architect concrete research questions for Gap 1",
+        "Recommend suitable empirical datasets and benchmark metrics",
+        "Design a 1-page Grant Proposal Specific Aims outline",
+      ];
+    case "latex_compiler":
+      return [
+        "Add an IEEE 2-column comparative results table in LaTeX",
+        "Formulate the loss function and optimization proof in LaTeX ($...$)",
+        "Generate the complete Overleaf-ready .bib file",
+      ];
+    case "grant_architect":
+      return [
+        "Draft the Specific Aims page tailored for NSF / NIH mechanism",
+        "Generate a multi-year budget justification and milestone matrix",
+        "Formulate the Broader Impacts and dissemination strategy",
+      ];
+    case "journal_rebuttal":
+      return [
+        "Polish the response to Reviewer 1's theoretical critique",
+        "Draft manuscript diffs for Section 4 results calibration",
+        "Generate an executive summary letter to the Associate Editor",
+      ];
+    default:
+      return [
+        "Can you elaborate further with real-world empirical examples?",
+        "Find peer-reviewed academic papers supporting these claims",
+        "Convert this analysis into a publication-ready LaTeX draft",
+      ];
+  }
 }
 
 // 1. Ultra-Fast Intent Classification Engine (Runs in < 5ms)
@@ -181,6 +246,8 @@ export async function executeAutonomousBrain(context: BrainExecutionContext): Pr
 
   const executionTimeMs = Date.now() - startTime;
 
+  const followUpQuestions = generateFollowUpQuestions(agentId, userPrompt, effectivePapers, matchedDocuments);
+
   return {
     intent,
     content: aiResult.content,
@@ -190,5 +257,6 @@ export async function executeAutonomousBrain(context: BrainExecutionContext): Pr
     executionTimeMs,
     confidenceScore: 0.96,
     structuredData: aiResult.structuredData,
+    followUpQuestions,
   };
 }

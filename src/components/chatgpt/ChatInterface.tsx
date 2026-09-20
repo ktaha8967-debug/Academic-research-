@@ -60,11 +60,11 @@ export const AVAILABLE_DATABASES: DBSelectionItem[] = [
 ];
 
 export const AVAILABLE_MODELS = [
-  { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai" as const, desc: "OpenAI GPT-4o Mini · Ultra-fast & smart", tag: "Recommended" },
-  { id: "gpt-4o", name: "GPT-4o", provider: "openai" as const, desc: "OpenAI GPT-4o · Advanced scholarly reasoning", tag: "Flagship" },
-  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as const, desc: "Google Agent SDK · Free high speed", tag: "Google Free" },
-  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "groq" as const, desc: "Groq Fast Inference · Deep reasoning", tag: "Groq Ultra" },
-  { id: "deepseek/deepseek-chat", name: "DeepSeek V3", provider: "openrouter" as const, desc: "DeepSeek 671B · OpenRouter architecture", tag: "SOTA" },
+  { id: "gpt-4o-mini", name: "Fast (GPT-4o Mini)", provider: "openai" as const, desc: "Ultra-fast literature indexing & instant Q&A", tag: "Fast" },
+  { id: "gpt-4o", name: "Pro (GPT-4o)", provider: "openai" as const, desc: "Deep scholarly synthesis & publication-grade reasoning", tag: "Pro" },
+  { id: "deepseek/deepseek-chat", name: "Max (DeepSeek V3 / R1)", provider: "openrouter" as const, desc: "Exhaustive multi-hop academic reasoning & audit", tag: "Max" },
+  { id: "llama-3.3-70b-versatile", name: "Groq Llama 3.3 70B", provider: "groq" as const, desc: "Ultra-fast open-source cloud inference", tag: "Groq Ultra" },
+  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as const, desc: "Google Agent SDK 1M token context window", tag: "Google Free" },
 ];
 
 interface ChatInterfaceProps {
@@ -512,9 +512,31 @@ export function ChatInterface({
                     </div>
                   )}
 
+                  {/* Dynamic Suggested Follow-Up Questions (Chatademia Reference) */}
+                  {msg.role === "assistant" && msg.followUpQuestions && msg.followUpQuestions.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/60">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                        Suggested Follow-up Questions:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {msg.followUpQuestions.map((q, qIdx) => (
+                          <button
+                            key={qIdx}
+                            onClick={() => onSendMessage(q)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/15 px-3 py-1 text-xs font-medium text-primary transition-all hover:scale-[1.01] active:scale-[0.99] text-left shadow-2xs"
+                          >
+                            <span>{q}</span>
+                            <ArrowRight className="h-3 w-3 shrink-0 opacity-70" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Interactive Quick Skill Actions */}
                   {msg.role === "assistant" && (
-                    <div className="mt-4 pt-3 border-t border-border/60 flex flex-wrap items-center gap-1.5">
+                    <div className="mt-3 pt-2.5 border-t border-border/40 flex flex-wrap items-center gap-1.5">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase mr-1">
                         Explore Further:
                       </span>

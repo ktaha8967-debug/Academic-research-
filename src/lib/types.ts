@@ -150,6 +150,7 @@ export interface MessageHistoryItem {
   structuredData?: any;
   sources?: AcademicPaper[];
   executionTimeMs?: number;
+  followUpQuestions?: string[];
 }
 
 export interface SearchQueryParams {
