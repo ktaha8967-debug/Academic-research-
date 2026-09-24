@@ -83,9 +83,6 @@ export function LandingPage({ onLaunchApp, savedPapersCount }: LandingPageProps)
 
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28 border-b border-border/60">
-        {/* Glow backdrop effects */}
-        <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-gradient-to-tr from-primary/20 via-blue-600/10 to-emerald-500/10 blur-3xl opacity-70" />
-
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           {/* Release Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary mb-6 shadow-xs animate-in fade-in zoom-in duration-500">
@@ -95,7 +92,7 @@ export function LandingPage({ onLaunchApp, savedPapersCount }: LandingPageProps)
 
           <h1 className="mx-auto max-w-4xl text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-foreground leading-[1.15]">
             Supercharge Your Research from{" "}
-            <span className="bg-gradient-to-r from-primary via-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            <span className="text-primary underline decoration-primary/30 underline-offset-8">
               Idea to Publication
             </span>
           </h1>
@@ -278,7 +275,7 @@ export function LandingPage({ onLaunchApp, savedPapersCount }: LandingPageProps)
                 </div>
                 <h3 className="font-bold text-lg text-foreground">Academic Conference Poster Builder</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Converts research papers into formatted 36"x48" 3-column conference posters with 5 color themes (Oxford Navy, Nature Emerald, Dark Slate, Crimson Red, Gradient) and instant print/PDF export.
+                  Converts research papers into formatted 36"x48" 3-column conference posters with 5 color themes (Oxford Navy, Nature Emerald, Dark Slate, Crimson Red, Royal Violet) and instant print/PDF export.
                 </p>
               </div>
             )}

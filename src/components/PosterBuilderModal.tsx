@@ -49,7 +49,7 @@ export function PosterBuilderModal({
       case "crimson-oxford":
         return "bg-rose-950 text-rose-50 border-rose-600";
       case "sunset-gradient":
-        return "bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 text-white border-purple-500";
+        return "bg-purple-950 text-purple-100 border-purple-600";
     }
   };
 
@@ -92,7 +92,7 @@ export function PosterBuilderModal({
               { id: "emerald-nature", name: "Nature Emerald" },
               { id: "dark-slate", name: "Dark Slate" },
               { id: "crimson-oxford", name: "Crimson Red" },
-              { id: "sunset-gradient", name: "Deep Gradient" },
+              { id: "sunset-gradient", name: "Royal Violet" },
             ].map((th) => (
               <button
                 key={th.id}

@@ -16,7 +16,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "cs_ai",
     name: "Computer Science & Artificial Intelligence",
     icon: "Cpu",
-    color: "from-blue-500 to-indigo-600",
+    color: "bg-blue-600",
     totalWorksEstimate: "45M+ Works",
     description: "Deep learning, LLMs, computer vision, robotics, cybersecurity, quantum computing, and distributed architectures.",
     subfields: [
@@ -39,7 +39,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "medicine_health",
     name: "Medicine, Oncology & Clinical Health",
     icon: "Stethoscope",
-    color: "from-red-500 to-rose-600",
+    color: "bg-red-600",
     totalWorksEstimate: "75M+ Works",
     description: "Clinical trials, oncology, immunology, cardiology, neurology, surgery, pharmacology, and translational therapeutics.",
     subfields: [
@@ -62,7 +62,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "biology_genomics",
     name: "Genomics, Molecular Biology & Life Sciences",
     icon: "Dna",
-    color: "from-emerald-500 to-teal-600",
+    color: "bg-emerald-600",
     totalWorksEstimate: "60M+ Works",
     description: "CRISPR gene editing, structural biology, evolutionary genomics, bioinformatics, epigenetics, and synthetic biology.",
     subfields: [
@@ -85,7 +85,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "physics_astronomy",
     name: "Physics, Astronomy & Space Sciences",
     icon: "Sparkles",
-    color: "from-violet-500 to-purple-600",
+    color: "bg-purple-600",
     totalWorksEstimate: "35M+ Works",
     description: "Quantum mechanics, astrophysics, cosmology, high-energy particle physics, general relativity, and plasma physics.",
     subfields: [
@@ -108,7 +108,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "chemistry_materials",
     name: "Chemistry, Nanotechnology & Materials Science",
     icon: "FlaskConical",
-    color: "from-amber-500 to-orange-600",
+    color: "bg-amber-600",
     totalWorksEstimate: "40M+ Works",
     description: "Organic synthesis, 2D nanomaterials (graphene, MXenes), battery electrochemistry, MOFs, and green catalysis.",
     subfields: [
@@ -131,7 +131,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "engineering_tech",
     name: "Engineering & Applied Technology",
     icon: "Cog",
-    color: "from-cyan-500 to-blue-600",
+    color: "bg-cyan-600",
     totalWorksEstimate: "50M+ Works",
     description: "Semiconductor microelectronics, aerospace engineering, renewable power grids, autonomous vehicles, and biomechanics.",
     subfields: [
@@ -154,7 +154,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "economics_finance",
     name: "Economics, Quantitative Finance & Business",
     icon: "TrendingUp",
-    color: "from-emerald-600 to-green-700",
+    color: "bg-green-700",
     totalWorksEstimate: "25M+ Works",
     description: "Macroeconomic policy, behavioral economics, algorithmic trading, financial econometrics, game theory, and development.",
     subfields: [
@@ -177,7 +177,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "psychology_neuro",
     name: "Psychology, Cognitive Science & Neuroscience",
     icon: "Brain",
-    color: "from-pink-500 to-rose-600",
+    color: "bg-pink-600",
     totalWorksEstimate: "30M+ Works",
     description: "Cognitive architectures, fMRI neuroimaging, psychometrics, memory consolidation, mental health, and decision science.",
     subfields: [
@@ -200,7 +200,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "social_law_policy",
     name: "Social Sciences, Law & Public Policy",
     icon: "Users",
-    color: "from-amber-600 to-yellow-600",
+    color: "bg-yellow-600",
     totalWorksEstimate: "35M+ Works",
     description: "Algorithmic governance, constitutional law, geopolitical relations, sociology of science, ethics in AI, and urban policy.",
     subfields: [
@@ -223,7 +223,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "climate_earth",
     name: "Climate, Earth Systems & Environmental Science",
     icon: "Globe",
-    color: "from-teal-500 to-emerald-600",
+    color: "bg-teal-600",
     totalWorksEstimate: "28M+ Works",
     description: "IPCC climate models, oceanography, carbon sequestration, extreme weather forecasting, geophysics, and hydrology.",
     subfields: [
@@ -246,7 +246,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "mathematics_stats",
     name: "Mathematics, Statistics & Probability Theory",
     icon: "Calculator",
-    color: "from-indigo-500 to-blue-700",
+    color: "bg-indigo-600",
     totalWorksEstimate: "20M+ Works",
     description: "Algebraic geometry, number theory, high-dimensional probability, Bayesian inference, topology, and optimization.",
     subfields: [
@@ -269,7 +269,7 @@ export const GLOBAL_ACADEMIC_DISCIPLINES: AcademicDiscipline[] = [
     id: "philosophy_humanities",
     name: "Philosophy, Epistemology & Computational Humanities",
     icon: "BookMarked",
-    color: "from-stone-500 to-neutral-700",
+    color: "bg-stone-600",
     totalWorksEstimate: "18M+ Works",
     description: "Philosophy of mind, epistemology of AI, formal ethics, computational linguistics, historical informatics, and aesthetics.",
     subfields: [

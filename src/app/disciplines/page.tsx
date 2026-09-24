@@ -212,7 +212,7 @@ export default function DisciplinesTaxonomyPage() {
         {/* Right Column: Selected Discipline Deep Dive & Landmark Corpus */}
         <div className="flex-1 flex flex-col overflow-y-auto bg-background p-6 space-y-6">
           {/* Discipline Hero Banner */}
-          <div className="rounded-3xl border border-border bg-gradient-to-r from-card via-card to-primary/5 p-6 shadow-sm space-y-4">
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="px-3 py-1 rounded-full bg-primary/15 text-primary font-bold text-xs uppercase tracking-wider">

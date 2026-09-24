@@ -507,7 +507,8 @@ export function AppWorkspace({ initialAgent, onBackToLanding }: AppWorkspaceProp
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
                       handleSubmit();
                     }
                   }}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AgentType } from "@/lib/types";
+import { AgentType, Project } from "@/lib/types";
 import {
   Menu,
   ChevronDown,
@@ -17,16 +17,22 @@ import {
   FileCode,
   Globe,
   Sliders,
+  PanelRightClose,
+  PanelRightOpen,
+  FolderGit2,
 } from "lucide-react";
 
 interface ChatNavbarProps {
   activeAgent: AgentType;
+  activeProject?: Project;
   onSelectAgent: (id: AgentType) => void;
   onToggleSidebar: () => void;
   onOpenSearchPapers: () => void;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   attachedPapersCount: number;
+  isRightPanelOpen?: boolean;
+  onToggleRightPanel?: () => void;
 }
 
 const UNIFIED_MODES = [
@@ -69,12 +75,15 @@ const UNIFIED_MODES = [
 
 export function ChatNavbar({
   activeAgent,
+  activeProject,
   onSelectAgent,
   onToggleSidebar,
   onOpenSearchPapers,
   darkMode,
   setDarkMode,
   attachedPapersCount,
+  isRightPanelOpen = true,
+  onToggleRightPanel,
 }: ChatNavbarProps) {
   const [showModelMenu, setShowModelMenu] = useState(false);
 
@@ -82,7 +91,7 @@ export function ChatNavbar({
   const CurrentIcon = currentMode.icon;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/70 bg-background/85 px-4 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur-md">
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleSidebar}
@@ -92,23 +101,20 @@ export function ChatNavbar({
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Gemini / ChatGPT / Kimi Style Unified Model & Mode Selector */}
+        {/* Unified Model & Mode Selector */}
         <div className="relative">
           <button
             onClick={() => setShowModelMenu(!showModelMenu)}
-            className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold text-foreground hover:bg-muted/80 transition-colors"
+            className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-bold text-foreground hover:bg-muted/80 transition-colors"
           >
             <span className="flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent font-extrabold">
-                AcademicAI 2.0
+              <span className="text-foreground font-black text-sm tracking-tight">
+                Academic<span className="text-primary">AI</span> 2.0
               </span>
               <span className="hidden md:inline text-xs font-semibold text-foreground">
                 ({currentMode.name.split(" ")[0]})
               </span>
-            </span>
-            <span className="hidden sm:inline text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
-              Omni Brain &bull; Free Cloud
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
@@ -169,6 +175,19 @@ export function ChatNavbar({
         </div>
       </div>
 
+      {/* Center: Active Project Indicator */}
+      {activeProject && (
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card/60 text-xs">
+          <FolderGit2 className="h-3.5 w-3.5 text-primary" />
+          <span className="font-semibold text-foreground truncate max-w-[220px]">
+            {activeProject.name}
+          </span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+            {activeProject.activeStage || "Research"}
+          </span>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex items-center gap-2">
         <button
@@ -191,6 +210,20 @@ export function ChatNavbar({
         >
           {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
         </button>
+
+        {onToggleRightPanel && (
+          <button
+            onClick={onToggleRightPanel}
+            className={`rounded-lg p-2 transition-colors border ${
+              isRightPanelOpen
+                ? "bg-muted text-primary border-primary/30"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground border-border"
+            }`}
+            title={isRightPanelOpen ? "Collapse Artifacts Panel" : "Expand Artifacts Panel"}
+          >
+            {isRightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+          </button>
+        )}
       </div>
     </header>
   );

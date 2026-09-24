@@ -129,6 +129,98 @@ export interface CitationGraphLink {
   type: "citation" | "co-authorship" | "semantic";
 }
 
+export type ResearchStage =
+  | "question"
+  | "papers"
+  | "synthesis"
+  | "gaps"
+  | "questions"
+  | "evidence"
+  | "analysis"
+  | "manuscript"
+  | "review"
+  | "rebuttal"
+  | "poster";
+
+export interface StructuredResearchGap {
+  id: string;
+  title: string;
+  type: "Methodological" | "Theoretical" | "Empirical" | "Population" | "Translational";
+  description: string;
+  impact: "High" | "Medium" | "Critical";
+  supportingPapers?: string[];
+  suggestedDirection?: string;
+}
+
+export interface StructuredResearchQuestion {
+  id: string;
+  question: string;
+  nullHypothesis?: string;
+  altHypothesis?: string;
+  finerCriteria?: {
+    feasible: string;
+    interesting: string;
+    novel: string;
+    ethical: string;
+    relevant: string;
+  };
+  recommendedMethodology?: string;
+  targetMetrics?: string[];
+}
+
+export interface StructuredEvidenceStudy {
+  id: string;
+  author: string;
+  year: number;
+  sampleSize?: string;
+  methodology?: string;
+  independentVar?: string;
+  dependentVar?: string;
+  effectSize?: string;
+  pValue?: string;
+  primaryFinding: string;
+  limitation?: string;
+  verifiedDoi?: string;
+}
+
+export interface StructuredLiteratureReview {
+  topic: string;
+  themes: {
+    id: string;
+    name: string;
+    consensus: string;
+    papersCount: number;
+    keyStudies: string[];
+  }[];
+  synthesisSummary: string;
+  methodologicalTrends: string;
+}
+
+export interface ClarificationPrompt {
+  isClarification: true;
+  term: string;
+  reason: string;
+  suggestedInterpretations: {
+    label: string;
+    description: string;
+    promptToExecute: string;
+  }[];
+}
+
+export interface StructuredAgentOutput {
+  type: "clarification" | "papers" | "gaps" | "questions" | "evidence" | "review" | "methodology" | "general";
+  clarification?: ClarificationPrompt;
+  papers?: AcademicPaper[];
+  gaps?: StructuredResearchGap[];
+  researchGaps?: StructuredResearchGap[];
+  questions?: StructuredResearchQuestion[];
+  researchQuestions?: StructuredResearchQuestion[];
+  evidence?: StructuredEvidenceStudy[];
+  evidenceMatrix?: StructuredEvidenceStudy[];
+  literatureReview?: StructuredLiteratureReview;
+  rawMarkdown?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -136,9 +228,16 @@ export interface Project {
   category: string;
   createdAt: string;
   updatedAt: string;
+  researchQuestion?: string;
+  activeStage?: ResearchStage;
   savedPapers: AcademicPaper[];
   notes: string[];
   history: MessageHistoryItem[];
+  literatureReview?: StructuredLiteratureReview;
+  researchGaps?: StructuredResearchGap[];
+  researchQuestions?: StructuredResearchQuestion[];
+  evidenceMatrix?: StructuredEvidenceStudy[];
+  manuscriptDraft?: string;
 }
 
 export interface MessageHistoryItem {
@@ -147,7 +246,7 @@ export interface MessageHistoryItem {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
-  structuredData?: any;
+  structuredData?: StructuredAgentOutput | any;
   sources?: AcademicPaper[];
   executionTimeMs?: number;
   followUpQuestions?: string[];

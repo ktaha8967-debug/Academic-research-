@@ -134,7 +134,7 @@ export default function DatasetsHubPage() {
       {/* Main Container */}
       <div className="flex-1 overflow-y-auto p-6 max-w-7xl mx-auto w-full space-y-6">
         {/* Search & Filter Header Banner */}
-        <div className="rounded-3xl border border-border bg-gradient-to-r from-card via-card/90 to-primary/5 p-6 shadow-sm space-y-4">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
           <div className="max-w-2xl">
             <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
               Standardized Datasets & Evaluation Benchmarks

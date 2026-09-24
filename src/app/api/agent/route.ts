@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
       conversationHistory = [],
       config,
       selectedDatabases,
+      project,
     }: {
       agentId: AgentType;
       userPrompt: string;
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
       conversationHistory?: MessageHistoryItem[];
       config?: AIModelConfig;
       selectedDatabases?: string[];
+      project?: import("@/lib/types").Project;
     } = body;
 
     if (!userPrompt || typeof userPrompt !== "string" || !userPrompt.trim()) {
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
       conversationHistory,
       config,
       selectedDatabases,
+      project,
     });
 
     return NextResponse.json({

@@ -6,41 +6,41 @@ import {
   AcademicPaper,
   MessageHistoryItem,
   AIModelConfig,
+  Project,
+  ResearchStage,
+  StructuredResearchGap,
+  StructuredResearchQuestion,
 } from "@/lib/types";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import {
   Send,
   Loader2,
   Sparkles,
-  Paperclip,
-  ArrowRight,
   Copy,
   Check,
   BookOpen,
-  Cpu,
-  Layers,
-  FileSpreadsheet,
-  Users,
-  Presentation,
   BrainCircuit,
   Search,
   ExternalLink,
   Plus,
-  Globe,
   FileCode,
-  Zap,
   Lightbulb,
   Dna,
-  Scale,
-  DollarSign,
   Download,
   ChevronDown,
   Database,
-  SlidersHorizontal,
-  PanelRightClose,
-  PanelRightOpen,
   CheckSquare,
   Square,
   Bot,
+  RotateCcw,
+  HelpCircle,
+  Bookmark,
+  BookmarkCheck,
+  Quote,
+  Layers,
+  ArrowRight,
+  ShieldCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export interface DBSelectionItem {
@@ -65,20 +65,38 @@ export const AVAILABLE_MODELS = [
   { id: "academic-max", name: "AcademicAI Max", provider: "openrouter" as const, desc: "AcademicAI Max · Exhaustive multi-hop academic reasoning & audit", tag: "Max" },
 ];
 
+const RESEARCH_STAGES: { id: ResearchStage; label: string }[] = [
+  { id: "question", label: "Question" },
+  { id: "papers", label: "Papers" },
+  { id: "synthesis", label: "Synthesis" },
+  { id: "gaps", label: "Gaps" },
+  { id: "questions", label: "Questions" },
+  { id: "evidence", label: "Evidence" },
+  { id: "analysis", label: "Analysis" },
+  { id: "manuscript", label: "Manuscript" },
+  { id: "review", label: "Review" },
+  { id: "rebuttal", label: "Rebuttal" },
+  { id: "poster", label: "Poster" },
+];
+
 interface ChatInterfaceProps {
   agentId: AgentType;
   messages: MessageHistoryItem[];
   attachedPapers: AcademicPaper[];
+  activeProject?: Project;
   onSendMessage: (text: string, customConfig?: AIModelConfig, customDatabases?: string[]) => void;
   loading: boolean;
   executionStep: string;
   onOpenSearchPapers: () => void;
   onRemovePaper: (id: string) => void;
+  onToggleSavePaper?: (paper: AcademicPaper) => void;
+  onUpdateProjectStage?: (stage: ResearchStage) => void;
   onChainAgent: (agentId: AgentType, prompt: string) => void;
   aiConfig: AIModelConfig;
   onUpdateAiConfig?: (config: AIModelConfig) => void;
   isRightPanelOpen?: boolean;
   onToggleRightPanel?: () => void;
+  onRetryMessage?: (prompt: string) => void;
 }
 
 const STARTER_PROMPTS = [
@@ -89,16 +107,10 @@ const STARTER_PROMPTS = [
     prompt: "Find the most cited and recent 2024-2025 papers on Multi-Agent Reinforcement Learning with direct PDF links and DOIs.",
   },
   {
-    icon: Layers,
+    icon: BookOpen,
     category: "Literature Review",
     title: "Systematic Literature Review",
     prompt: "Generate a publication-grade systematic literature review comparing Transformer Attention vs State Space Models (Mamba).",
-  },
-  {
-    icon: FileCode,
-    category: "LaTeX & Typesetting",
-    title: "Draft LaTeX Manuscript & Math",
-    prompt: "Write a complete IEEE conference LaTeX section with mathematical formulations for Direct Preference Optimization (DPO).",
   },
   {
     icon: Lightbulb,
@@ -107,16 +119,22 @@ const STARTER_PROMPTS = [
     prompt: "What are the unexplored methodological and theoretical research gaps in zero-shot medical diagnosis with Multimodal LLMs?",
   },
   {
+    icon: HelpCircle,
+    category: "Research Questions",
+    title: "Formulate Research Questions",
+    prompt: "Turn our literature findings into 3 novel, testable research questions with FINER criteria evaluation.",
+  },
+  {
+    icon: FileCode,
+    category: "LaTeX & Typesetting",
+    title: "Draft LaTeX Manuscript & Math",
+    prompt: "Write a complete IEEE conference LaTeX section with mathematical formulations for Direct Preference Optimization (DPO).",
+  },
+  {
     icon: Dna,
     category: "Biomedical & Sciences",
     title: "CRISPR & Molecular Protocols",
     prompt: "Design a high-specificity CRISPR-Cas9 gRNA targeting human PCSK9 with off-target CFD score mitigation.",
-  },
-  {
-    icon: Sparkles,
-    category: "Universal Assistant",
-    title: "General Chat & Coding",
-    prompt: "Explain how quantum entanglement enables quantum key distribution (BB84 protocol) in simple terms with Python simulation.",
   },
 ];
 
@@ -124,21 +142,24 @@ export function ChatInterface({
   agentId,
   messages,
   attachedPapers,
+  activeProject,
   onSendMessage,
   loading,
   executionStep,
   onOpenSearchPapers,
   onRemovePaper,
+  onToggleSavePaper,
+  onUpdateProjectStage,
   onChainAgent,
   aiConfig,
   onUpdateAiConfig,
   isRightPanelOpen,
   onToggleRightPanel,
+  onRetryMessage,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [deepSearchActive, setDeepSearchActive] = useState(true);
-  const [deepReasoningActive, setDeepReasoningActive] = useState(false);
+  const [copiedCitationId, setCopiedCitationId] = useState<string | null>(null);
 
   // Model & DB Selector state
   const [selectedModelId, setSelectedModelId] = useState<string>(
@@ -149,34 +170,29 @@ export function ChatInterface({
     "arxiv",
     "pubmed",
     "europepmc",
-    "crossref",
-    "semanticscholar",
   ]);
-  const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
-  const [isDbPickerOpen, setIsDbPickerOpen] = useState(false);
+  const [isDbMenuOpen, setIsDbMenuOpen] = useState(false);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const modelPickerRef = useRef<HTMLDivElement>(null);
-  const dbPickerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages, loading]);
 
-  // Close popovers on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (modelPickerRef.current && !modelPickerRef.current.contains(event.target as Node)) {
-        setIsModelPickerOpen(false);
-      }
-      if (dbPickerRef.current && !dbPickerRef.current.contains(event.target as Node)) {
-        setIsDbPickerOpen(false);
-      }
+  // Auto-grow textarea
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -186,323 +202,282 @@ export function ChatInterface({
   };
 
   const handleSend = () => {
-    if (inputText.trim() && !loading) {
-      let finalPrompt = inputText.trim();
-      if (deepReasoningActive) {
-        finalPrompt = `[DEEP REASONING & MATHEMATICAL DERIVATIONS ENABLED]\n${finalPrompt}`;
-      }
-      const modelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId);
-      const customConfig: AIModelConfig = {
-        provider: modelObj?.provider || "openai",
-        modelName: selectedModelId,
-      };
-      if (onUpdateAiConfig) {
-        onUpdateAiConfig(customConfig);
-      }
-      onSendMessage(finalPrompt, customConfig, selectedDatabases);
-      setInputText("");
-      setIsModelPickerOpen(false);
-      setIsDbPickerOpen(false);
+    if (!inputText.trim() || loading) return;
+    const modelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[1];
+    const newConfig: AIModelConfig = {
+      provider: modelObj.provider,
+      modelName: modelObj.id,
+    };
+    if (onUpdateAiConfig) onUpdateAiConfig(newConfig);
+
+    onSendMessage(inputText.trim(), newConfig, selectedDatabases);
+    setInputText("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
   };
 
-  const toggleDatabase = (dbId: string) => {
-    if (selectedDatabases.includes(dbId)) {
-      if (selectedDatabases.length === 1) return; // Keep at least one
-      setSelectedDatabases(selectedDatabases.filter((id) => id !== dbId));
-    } else {
-      setSelectedDatabases([...selectedDatabases, dbId]);
-    }
-  };
-
-  const selectAllDatabases = () => {
-    setSelectedDatabases(AVAILABLE_DATABASES.map((d) => d.id));
-  };
-
-  const selectedModelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[0];
-
-  const handleCopy = (text: string, id: string) => {
+  const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const formatInlineText = (text: string) => {
-    const linkRegex = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
-    const parts: (string | React.ReactNode)[] = [];
-    let lastIndex = 0;
-    let match;
+  const handleCopyCitation = (paper: AcademicPaper) => {
+    const bibtex = `@article{${(paper.authors[0] || "Author").split(" ")[0].toLowerCase()}${paper.year},\n  title = {${paper.title}},\n  author = {${paper.authors.join(" and ")}},\n  journal = {${paper.venue || "Scholarly Repository"}},\n  year = {${paper.year}}${paper.doi ? `,\n  doi = {${paper.doi}}` : ""}\n}`;
+    navigator.clipboard.writeText(bibtex);
+    setCopiedCitationId(paper.id);
+    setTimeout(() => setCopiedCitationId(null), 2000);
+  };
 
-    while ((match = linkRegex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(formatBoldText(text.substring(lastIndex, match.index)));
+  const isPaperSaved = (paper: AcademicPaper) => {
+    const projectPapers = activeProject?.savedPapers || [];
+    return projectPapers.some(
+      (p) => p.id === paper.id || (p.doi && paper.doi && p.doi === paper.doi) || p.title.toLowerCase() === paper.title.toLowerCase()
+    );
+  };
+
+  const toggleDatabase = (dbId: string) => {
+    if (selectedDatabases.includes(dbId)) {
+      if (selectedDatabases.length > 1) {
+        setSelectedDatabases(selectedDatabases.filter((id) => id !== dbId));
       }
-      const label = match[1];
-      const url = match[2];
-      parts.push(
-        <a
-          key={match.index}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary font-semibold underline underline-offset-2 hover:text-primary/80 inline-flex items-center gap-0.5 mx-0.5 transition-colors"
-        >
-          <span>{label}</span>
-          <ExternalLink className="h-3 w-3 inline shrink-0" />
-        </a>
-      );
-      lastIndex = linkRegex.lastIndex;
+    } else {
+      setSelectedDatabases([...selectedDatabases, dbId]);
     }
-
-    if (lastIndex < text.length) {
-      parts.push(formatBoldText(text.substring(lastIndex)));
-    }
-
-    return parts.length > 0 ? parts : formatBoldText(text);
   };
 
-  const formatBoldText = (text: string) => {
-    const boldParts = text.split(/(\*\*.*?\*\*)/g);
-    return boldParts.map((part, i) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="font-bold text-foreground">{part.slice(2, -2)}</strong>;
-      }
-      return part;
-    });
-  };
-
-  const renderMarkdown = (content: string) => {
-    const lines = content.split("\n");
-    let inCodeBlock = false;
-    let codeBlockContent: string[] = [];
-    let codeBlockLang = "";
-    const renderedElements: React.ReactNode[] = [];
-
-    lines.forEach((line, idx) => {
-      if (line.startsWith("```")) {
-        if (inCodeBlock) {
-          const codeText = codeBlockContent.join("\n");
-          renderedElements.push(
-            <div key={`code-${idx}`} className="my-3 rounded-2xl bg-[#18181b] p-4 border border-border/80 font-mono text-xs overflow-x-auto relative group shadow-sm">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800 text-zinc-400 text-[11px]">
-                <span className="uppercase font-bold tracking-wider">{codeBlockLang || "code"}</span>
-                <button
-                  onClick={() => handleCopy(codeText, `code-${idx}`)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
-                  title="Copy code"
-                >
-                  {copiedId === `code-${idx}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedId === `code-${idx}` ? "Copied" : "Copy"}</span>
-                </button>
-              </div>
-              <pre className="text-zinc-200 leading-relaxed overflow-x-auto">{codeText}</pre>
-            </div>
-          );
-          inCodeBlock = false;
-          codeBlockContent = [];
-          codeBlockLang = "";
-        } else {
-          inCodeBlock = true;
-          codeBlockLang = line.replace("```", "").trim();
-        }
-        return;
-      }
-
-      if (inCodeBlock) {
-        codeBlockContent.push(line);
-        return;
-      }
-
-      if (line.startsWith("## ")) {
-        renderedElements.push(<h2 key={idx} className="text-base sm:text-lg font-bold text-foreground mt-4 mb-2 pb-1 border-b border-border/60">{formatInlineText(line.replace("## ", ""))}</h2>);
-        return;
-      }
-      if (line.startsWith("### ")) {
-        renderedElements.push(<h3 key={idx} className="text-sm sm:text-base font-bold text-foreground mt-3 mb-1.5 text-primary">{formatInlineText(line.replace("### ", ""))}</h3>);
-        return;
-      }
-      if (line.startsWith("#### ")) {
-        renderedElements.push(<h4 key={idx} className="text-xs sm:text-sm font-bold text-foreground mt-2 mb-1">{formatInlineText(line.replace("#### ", ""))}</h4>);
-        return;
-      }
-      if (line.startsWith("* ") || line.startsWith("- ")) {
-        renderedElements.push(
-          <li key={idx} className="ml-4 list-disc text-foreground/90 leading-relaxed my-0.5 text-xs sm:text-sm">
-            {formatInlineText(line.slice(2))}
-          </li>
-        );
-        return;
-      }
-      if (line.startsWith("> ")) {
-        renderedElements.push(
-          <blockquote key={idx} className="border-l-4 border-primary/60 pl-3.5 py-1.5 my-2 bg-primary/5 rounded-r-xl italic text-muted-foreground text-xs sm:text-sm leading-relaxed">
-            {formatInlineText(line.replace("> ", ""))}
-          </blockquote>
-        );
-        return;
-      }
-      if (line.startsWith("|")) {
-        renderedElements.push(
-          <div key={idx} className="overflow-x-auto text-xs py-1 font-mono text-foreground/80 bg-muted/30 px-2 rounded-lg my-1">
-            {line}
-          </div>
-        );
-        return;
-      }
-      if (line.trim() === "---") {
-        renderedElements.push(<hr key={idx} className="border-border my-4" />);
-        return;
-      }
-      if (!line.trim()) {
-        renderedElements.push(<div key={idx} className="h-2" />);
-        return;
-      }
-
-      renderedElements.push(<p key={idx} className="text-foreground/90 leading-relaxed text-xs sm:text-sm">{formatInlineText(line)}</p>);
-    });
-
-    return <div className="prose-academic space-y-1.5">{renderedElements}</div>;
-  };
+  const currentStageIndex = RESEARCH_STAGES.findIndex(
+    (s) => s.id === (activeProject?.activeStage || "question")
+  );
 
   return (
-    <div className="flex flex-1 flex-col h-full relative overflow-hidden bg-background">
-      {/* Scrollable Conversation Container */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 max-w-4xl mx-auto w-full">
+    <div className="relative flex flex-col flex-1 h-full overflow-hidden bg-background">
+      {/* 1. RESEARCH PROGRESSION BAR (Subtle solid-color workflow tracker) */}
+      <div className="border-b border-border/80 bg-card/60 px-4 py-2 shrink-0 overflow-x-auto [scrollbar-width:none]">
+        <div className="flex items-center gap-1.5 min-w-max text-xs">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1">
+            Research Stage:
+          </span>
+          {RESEARCH_STAGES.map((stage, idx) => {
+            const isActive = stage.id === (activeProject?.activeStage || "question");
+            const isCompleted = currentStageIndex > idx;
+
+            return (
+              <React.Fragment key={stage.id}>
+                <button
+                  onClick={() => onUpdateProjectStage?.(stage.id)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                      : isCompleted
+                      ? "bg-muted text-foreground font-medium hover:bg-muted/80"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  }`}
+                  title={`Stage: ${stage.label}`}
+                >
+                  {isCompleted && <Check className="h-3 w-3 text-emerald-500 shrink-0" />}
+                  <span>{stage.label}</span>
+                </button>
+                {idx < RESEARCH_STAGES.length - 1 && (
+                  <span className="text-muted-foreground/40 text-[10px]">&rarr;</span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Chat Conversation Scroll Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 space-y-6 pb-44">
         {messages.length === 0 ? (
-          /* Gemini / Kimi / ChatGPT Unified Welcome Screen */
-          <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-tr from-primary to-indigo-600 text-white mb-5 shadow-xl shadow-primary/20 ring-4 ring-primary/10">
-              <Sparkles className="h-8 w-8" />
+          <div className="max-w-3xl mx-auto space-y-8 pt-4">
+            {/* Academic Workspace Welcome Header */}
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-semibold text-muted-foreground mb-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <span>Citation-Grounded Academic Research Workstation</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                {activeProject?.name ? `Researching: ${activeProject.name}` : "What are you researching today?"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
+                Connected to OpenAlex, PubMed, arXiv, and Europe PMC. Pre-qualified scholarly queries, zero hallucinated DOIs, and connected multi-agent synthesis.
+              </p>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-              How can <span className="bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent">AcademicAI</span> help you today?
-            </h1>
-            <p className="mt-2.5 text-xs sm:text-sm text-muted-foreground max-w-lg leading-relaxed">
-              One unified AI assistant powered by free cloud foundation models. Search 480M+ research papers, synthesize literature, draft LaTeX manuscripts, write code, or chat naturally.
-            </p>
-
-            {/* Quick Starter Suggestion Grid (ChatGPT / Gemini style) */}
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-3xl text-left">
-              {STARTER_PROMPTS.map((item, idx) => {
-                const Icon = item.icon;
+            {/* Quick-Start Workflow Tiles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {STARTER_PROMPTS.map((prompt, idx) => {
+                const Icon = prompt.icon;
                 return (
                   <button
                     key={idx}
-                    onClick={() => onSendMessage(item.prompt)}
-                    className="flex flex-col justify-between p-4 rounded-2xl border border-border/80 bg-card hover:border-primary/60 hover:bg-muted/40 hover:shadow-md transition-all text-xs group"
+                    onClick={() => onSendMessage(prompt.prompt)}
+                    className="p-3.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-left transition-all hover:border-primary/50 group flex flex-col justify-between"
                   >
-                    <div className="flex items-center gap-2 mb-2 text-primary font-bold">
-                      <Icon className="h-4 w-4" />
-                      <span className="text-[11px] uppercase tracking-wider">{item.category}</span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                          {prompt.category}
+                        </span>
+                        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <h3 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors">
+                        {prompt.title}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2">
+                        {prompt.prompt}
+                      </p>
                     </div>
-                    <span className="font-semibold text-foreground group-hover:text-primary leading-snug line-clamp-2">
-                      {item.title}
-                    </span>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
-                      "{item.prompt}"
-                    </p>
+                    <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span>Launch Investigation</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
         ) : (
-          /* Message Stream */
-          <div className="space-y-6 pb-36">
+          <div className="max-w-3xl mx-auto space-y-6">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-3 sm:gap-4 ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex gap-3 items-start ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
+                {/* Assistant Avatar */}
                 {msg.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-white font-bold text-xs shadow-md mt-0.5">
-                    <Sparkles className="h-4 w-4" />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-border text-foreground font-bold text-xs shadow-xs mt-1">
+                    <Sparkles className="h-4 w-4 text-primary" />
                   </div>
                 )}
 
+                {/* Message Bubble Container */}
                 <div
-                  className={`relative max-w-[90%] sm:max-w-[82%] rounded-3xl p-4 sm:p-6 shadow-xs transition-all ${
+                  className={`relative group max-w-full sm:max-w-2xl rounded-2xl p-4 sm:p-5 shadow-xs transition-all ${
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground font-medium rounded-br-xs"
-                      : "bg-card border border-border text-foreground rounded-bl-xs shadow-sm"
+                      ? "bg-primary text-primary-foreground font-medium rounded-tr-xs"
+                      : "bg-card border border-border/80 text-foreground rounded-tl-xs"
                   }`}
                 >
-                  {msg.role === "assistant" && (
-                    <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-primary tracking-tight">
-                          AcademicAI Brain
-                        </span>
-                        <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.2 rounded-full">
-                          Free Cloud
-                        </span>
-                      </div>
+                  {/* Action Copy & Retry Bar */}
+                  <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    <button
+                      onClick={() => handleCopy(msg.id, msg.content)}
+                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                      title="Copy response"
+                    >
+                      {copiedId === msg.id ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                    {msg.role === "assistant" && onRetryMessage && (
                       <button
-                        onClick={() => handleCopy(msg.content, msg.id)}
-                        className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        title="Copy Response"
+                        onClick={() => {
+                          const lastUser = [...messages]
+                            .reverse()
+                            .find((m) => m.role === "user");
+                          if (lastUser) onRetryMessage(lastUser.content);
+                        }}
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                        title="Regenerate"
                       >
-                        {copiedId === msg.id ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-500" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
+                        <RotateCcw className="h-3.5 w-3.5" />
                       </button>
-                    </div>
-                  )}
-
-                  {/* Message Body */}
-                  <div>
-                    {msg.role === "user" ? (
-                      <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                    ) : (
-                      renderMarkdown(msg.content)
                     )}
                   </div>
 
-                  {/* Cited Papers Accordion / Direct PDF Links */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-border/60">
-                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <BookOpen className="h-3.5 w-3.5 text-primary" />
-                        Verified Peer-Reviewed Sources ({msg.sources.length}):
+                  {/* 1. CLARIFICATION CARD (For ambiguous queries like HWY) */}
+                  {msg.role === "assistant" && msg.structuredData?.clarification && (
+                    <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-foreground space-y-3">
+                      <div className="flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                        <h4 className="font-bold text-xs text-foreground uppercase tracking-wide">
+                          Query Clarification Required
+                        </h4>
+                      </div>
+                      <p className="text-xs text-foreground/90 leading-relaxed">
+                        {msg.structuredData.clarification.message}
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {msg.sources.map((src) => (
-                          <div
-                            key={src.id}
-                            className="flex flex-col justify-between p-2.5 rounded-xl bg-muted/40 border border-border/70 hover:border-primary/50 transition-colors text-xs"
-                          >
-                            <div>
-                              <a
-                                href={src.url || (src.doi ? `https://doi.org/${src.doi}` : src.pdfUrl || "#")}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-semibold text-foreground hover:text-primary line-clamp-1 flex items-center gap-1"
-                              >
-                                <span>{src.title}</span>
-                                <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
-                              </a>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {src.authors.slice(0, 2).join(", ")} ({src.year}) &bull; {src.source}
-                              </p>
-                            </div>
-                            <div className="mt-2 flex items-center justify-between text-[11px] pt-1.5 border-t border-border/40">
-                              <span className="font-bold text-primary">★ {src.citationCount || 0} citations</span>
-                              {src.pdfUrl && (
-                                <a
-                                  href={src.pdfUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline inline-flex items-center gap-0.5"
+                      {msg.structuredData.clarification.suggestedInterpretations?.length > 0 && (
+                        <div className="space-y-1.5 pt-1 border-t border-border/40">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                            Suggested Interpretations:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {msg.structuredData.clarification.suggestedInterpretations.map((interp: any, idx: number) => {
+                              const label = typeof interp === "string" ? interp : (interp?.label || interp?.promptToExecute || "Clarify");
+                              const promptToRun = typeof interp === "string" ? interp : (interp?.promptToExecute || interp?.label || "");
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => onSendMessage(promptToRun)}
+                                  className="px-3 py-1 rounded-full text-xs font-semibold border border-amber-500/30 bg-background hover:bg-amber-500/10 text-foreground transition-colors text-left"
                                 >
-                                  <Download className="h-3 w-3" />
-                                  <span>PDF</span>
-                                </a>
-                              )}
+                                  &bull; {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Standard Markdown Content */}
+                  <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed overflow-hidden break-words">
+                    <MarkdownRenderer content={msg.content} />
+                  </div>
+
+                  {/* 2. RESEARCH GAPS CARDS */}
+                  {msg.role === "assistant" && msg.structuredData?.researchGaps && msg.structuredData.researchGaps.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/80 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                          Identified Research Gaps ({msg.structuredData.researchGaps.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {msg.structuredData.researchGaps.map((gap: StructuredResearchGap) => (
+                          <div
+                            key={gap.id}
+                            className="rounded-xl border border-border bg-card p-3.5 space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <h5 className="font-bold text-xs text-foreground">
+                                {gap.title}
+                              </h5>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-foreground uppercase shrink-0">
+                                {gap.type || "Gap"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {gap.description}
+                            </p>
+                            {gap.impact && (
+                              <div className="text-[11px] text-foreground font-medium">
+                                <span className="text-primary font-bold">Expected Impact:</span> {gap.impact}
+                              </div>
+                            )}
+                            <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                              <span className="text-[10px] text-muted-foreground">
+                                {gap.supportingPapers?.length || 0} supporting references
+                              </span>
+                              <button
+                                onClick={() =>
+                                  onSendMessage(
+                                    `Turn this research gap: "${gap.title}" into 3 novel, testable research questions.`
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                              >
+                                <HelpCircle className="h-3 w-3" />
+                                <span>Generate Research Question</span>
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -510,67 +485,241 @@ export function ChatInterface({
                     </div>
                   )}
 
-                  {/* Dynamic Suggested Follow-Up Questions (Chatademia Reference) */}
-                  {msg.role === "assistant" && msg.followUpQuestions && msg.followUpQuestions.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-border/60">
-                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                        Suggested Follow-up Questions:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {msg.followUpQuestions.map((q, qIdx) => (
-                          <button
-                            key={qIdx}
-                            onClick={() => onSendMessage(q)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/15 px-3 py-1 text-xs font-medium text-primary transition-all hover:scale-[1.01] active:scale-[0.99] text-left shadow-2xs"
+                  {/* 3. RESEARCH QUESTION CARDS */}
+                  {msg.role === "assistant" && msg.structuredData?.researchQuestions && msg.structuredData.researchQuestions.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/80 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                          Formulated Research Questions ({msg.structuredData.researchQuestions.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {msg.structuredData.researchQuestions.map((q: StructuredResearchQuestion) => (
+                          <div
+                            key={q.id}
+                            className="rounded-xl border border-border bg-card p-3.5 space-y-2.5"
                           >
-                            <span>{q}</span>
-                            <ArrowRight className="h-3 w-3 shrink-0 opacity-70" />
-                          </button>
+                            <div className="flex items-start justify-between gap-2">
+                              <h5 className="font-bold text-xs text-foreground leading-snug">
+                                {q.question}
+                              </h5>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary uppercase shrink-0">
+                                RQ
+                              </span>
+                            </div>
+                            {(q.nullHypothesis || q.altHypothesis || (q as any).hypotheses) && (
+                              <div className="text-[11px] text-muted-foreground space-y-0.5">
+                                <span className="font-bold text-foreground">Hypotheses:</span>
+                                {q.nullHypothesis && (
+                                  <div className="pl-2 border-l border-border/80">
+                                    <span className="font-semibold text-foreground/80">H0: </span>{q.nullHypothesis}
+                                  </div>
+                                )}
+                                {q.altHypothesis && (
+                                  <div className="pl-2 border-l border-primary/60">
+                                    <span className="font-semibold text-primary">H1: </span>{q.altHypothesis}
+                                  </div>
+                                )}
+                                {Array.isArray((q as any).hypotheses) && (q as any).hypotheses.map((h: string, i: number) => (
+                                  <div key={i} className="pl-2 border-l border-primary/40">
+                                    &bull; {h}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                FINER Criteria Verified
+                              </span>
+                              <button
+                                onClick={() =>
+                                  onSendMessage(
+                                    `Design an experimental methodology and protocol for research question: "${q.question}"`
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors"
+                              >
+                                <Dna className="h-3 w-3" />
+                                <span>Design Methodology</span>
+                              </button>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Interactive Quick Skill Actions */}
-                  {msg.role === "assistant" && (
-                    <div className="mt-3 pt-2.5 border-t border-border/40 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase mr-1">
-                        Explore Further:
-                      </span>
-                      {[
-                        { id: "find_papers", label: "🔬 Search 480M+ Papers", prompt: "Find more peer-reviewed empirical papers and recent arXiv preprints on this topic with direct PDF links." },
-                        { id: "literature_overview", label: "📑 Synthesize Literature", prompt: "Synthesize these findings into a publication-grade systematic literature overview with a thematic comparison table." },
-                        { id: "latex_compiler", label: "📐 Convert to LaTeX", prompt: "Convert the key findings and equations from above into complete, compilable LaTeX manuscript code with BibTeX." },
-                        { id: "research_gaps", label: "💡 Uncover Gaps", prompt: "What are the unexplored research gaps and open challenges based on this analysis?" },
-                        { id: "mock_peer_review", label: "🏛️ Mock Peer Review", prompt: "Run a simulated rigorous peer-review evaluation on these findings and methods." },
-                      ].map((action) => (
-                        <button
-                          key={action.id}
-                          onClick={() => onSendMessage(action.prompt)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background/80 px-2.5 py-1 text-[11px] font-medium text-foreground hover:border-primary/60 hover:bg-muted transition-all shadow-2xs"
-                        >
-                          <span>{action.label}</span>
-                          <ArrowRight className="h-3 w-3 text-primary" />
-                        </button>
-                      ))}
+                  {/* 4. STRUCTURED PAPER CARDS */}
+                  {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/80 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <BookOpen className="h-3.5 w-3.5 text-primary" />
+                          Scholarly Sources ({msg.sources.length})
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Zero Fabricated DOIs
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {msg.sources.map((src) => {
+                          const saved = isPaperSaved(src);
+                          return (
+                            <div
+                              key={src.id}
+                              className="rounded-xl border border-border bg-card p-3 space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <a
+                                  href={src.url || (src.doi ? `https://doi.org/${src.doi}` : src.pdfUrl || "#")}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-bold text-xs text-foreground hover:text-primary transition-colors flex items-center gap-1 line-clamp-2"
+                                >
+                                  <span>{src.title}</span>
+                                  <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                                </a>
+                                {src.isOpenAccess && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                                    Open Access
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                <span>{src.authors.slice(0, 3).join(", ")}{src.authors.length > 3 ? " et al." : ""}</span>
+                                <span>&bull;</span>
+                                <span className="font-medium text-foreground">{src.venue || "Academic Venue"}</span>
+                                <span>&bull;</span>
+                                <span>{src.year}</span>
+                                {src.doi && (
+                                  <>
+                                    <span>&bull;</span>
+                                    <span className="font-mono text-[10px] text-primary">DOI: {src.doi}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Paper Card Action Row */}
+                              <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold text-primary">
+                                    ★ {src.citationCount || 0} citations
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {/* [Save to Project] */}
+                                  <button
+                                    onClick={() => onToggleSavePaper?.(src)}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border transition-colors ${
+                                      saved
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-muted text-muted-foreground border-border hover:text-foreground hover:bg-muted/80"
+                                    }`}
+                                    title={saved ? "Remove from project" : "Save to project"}
+                                  >
+                                    {saved ? (
+                                      <>
+                                        <BookmarkCheck className="h-3 w-3" />
+                                        <span>Saved</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Bookmark className="h-3 w-3" />
+                                        <span>Save to Project</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {/* [Cite] */}
+                                  <button
+                                    onClick={() => handleCopyCitation(src)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    title="Copy BibTeX Citation"
+                                  >
+                                    {copiedCitationId === src.id ? (
+                                      <Check className="h-3 w-3 text-emerald-500" />
+                                    ) : (
+                                      <Quote className="h-3 w-3" />
+                                    )}
+                                    <span>{copiedCitationId === src.id ? "Copied" : "Cite"}</span>
+                                  </button>
+
+                                  {/* [Use in Literature Review] */}
+                                  <button
+                                    onClick={() =>
+                                      onSendMessage(
+                                        `Synthesize a thematic literature review section focused on: "${src.title}" and its core findings.`
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border border-border bg-card text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                                  >
+                                    <Layers className="h-3 w-3" />
+                                    <span>Review</span>
+                                  </button>
+
+                                  {/* [Open Paper] */}
+                                  <a
+                                    href={src.url || (src.doi ? `https://doi.org/${src.doi}` : src.pdfUrl || "#")}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                                  >
+                                    <span>Open</span>
+                                    <ExternalLink className="h-2.5 w-2.5" />
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Follow-Up Questions */}
+                  {msg.role === "assistant" && msg.followUpQuestions && msg.followUpQuestions.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/60">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Suggested Next Steps:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {msg.followUpQuestions.map((q, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => onSendMessage(q)}
+                            className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground/80 hover:border-primary hover:text-primary hover:bg-muted/40 transition-colors text-left font-medium"
+                          >
+                            ↳ {q}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {msg.role === "user" && (
-                  <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-xl bg-muted text-foreground font-bold text-xs shadow-xs mt-0.5">
-                    U
-                  </div>
-                )}
               </div>
             ))}
 
-            {/* Loading Indicator */}
+            {/* Active Execution State with Orchestrator Details */}
             {loading && (
-              <div className="flex gap-3 items-center text-xs text-primary font-medium animate-pulse bg-primary/5 p-4 rounded-2xl border border-primary/20 max-w-lg shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                <span>{executionStep || "Synthesizing research across 480M+ papers..."}</span>
+              <div className="flex gap-3 items-start animate-in fade-in duration-200">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-xs">
+                  <Sparkles className="h-4 w-4 animate-spin" />
+                </div>
+                <div className="rounded-2xl bg-card border border-border p-4 shadow-xs max-w-md space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span>{executionStep || "Processing research request..."}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                    <div className="bg-primary h-full w-3/4 rounded-full animate-pulse" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Federated scholarly discovery across OpenAlex, PubMed, and Europe PMC with citation verification.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -579,241 +728,145 @@ export function ChatInterface({
         )}
       </div>
 
-      {/* Floating Curved Input Bar (Gemini / Kimi / ChatGPT style) */}
-      <div className="absolute inset-x-0 bottom-0 z-30 p-3 sm:p-5 bg-gradient-to-t from-background via-background/95 to-transparent">
+      {/* 3. Floating Input Bar (Solid-Color, No Gradients) */}
+      <div className="absolute inset-x-0 bottom-0 z-30 p-3 sm:p-5 bg-background border-t border-border/80">
         <div className="max-w-3xl mx-auto w-full space-y-2">
-          {/* Attached Papers Pills */}
-          {attachedPapers.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-              <span className="text-[11px] font-bold text-primary uppercase shrink-0">Attached:</span>
-              {attachedPapers.map((paper) => (
-                <span
-                  key={paper.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-card border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground shrink-0 shadow-xs"
-                >
-                  <BookOpen className="h-3 w-3 text-primary" />
-                  <span className="truncate max-w-[150px]">{paper.title}</span>
-                  <button
-                    onClick={() => onRemovePaper(paper.id)}
-                    className="text-muted-foreground hover:text-destructive ml-0.5 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Active Project & Attached Papers Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {activeProject && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-bold text-foreground shrink-0 border border-border">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>{activeProject.name}</span>
+              </span>
+            )}
+            {attachedPapers.length > 0 && (
+              <span className="text-[11px] font-bold text-primary uppercase shrink-0">
+                {attachedPapers.length} Papers Active
+              </span>
+            )}
+            <button
+              onClick={onOpenSearchPapers}
+              className="inline-flex items-center gap-1 rounded-full border border-border hover:border-primary px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground bg-card transition-colors shrink-0"
+            >
+              <Plus className="h-3 w-3" />
+              <span>Attach Paper</span>
+            </button>
+          </div>
 
-          {/* Curved Floating Input Container */}
-          <div className="relative flex flex-col rounded-3xl border border-border bg-card/95 backdrop-blur-md p-2 shadow-2xl focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-            {/* Input Textarea */}
+          {/* Main Input Box */}
+          <div className="relative flex flex-col rounded-2xl border border-input bg-card focus-within:border-primary shadow-xs transition-colors">
             <textarea
               ref={textareaRef}
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything, search 480M+ papers, write code, formulate hypotheses, or draft LaTeX..."
-              rows={2}
-              className="w-full max-h-36 resize-none bg-transparent px-3 py-1.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed"
+              placeholder="Ask a scholarly question, search literature, identify gaps, or design methodology..."
+              rows={1}
+              className="w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-44"
             />
 
-            {/* Bottom Toolbar & Action Switches */}
-            <div className="flex items-center justify-between pt-1.5 px-1 border-t border-border/40 mt-1 gap-1">
-              <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
-                {/* 1. Model Selector Dropdown */}
-                <div className="relative" ref={modelPickerRef}>
+            {/* Input Toolbar */}
+            <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* Database Selector Pill */}
+                <div className="relative">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setIsModelPickerOpen(!isModelPickerOpen);
-                      setIsDbPickerOpen(false);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-all shrink-0 shadow-2xs"
-                    title="Select AI Model"
+                    onClick={() => setIsDbMenuOpen(!isDbMenuOpen)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Bot className="h-3.5 w-3.5 text-primary" />
-                    <span>{selectedModelObj.name}</span>
-                    <ChevronDown className="h-3 w-3 opacity-70" />
+                    <Database className="h-3 w-3 text-primary" />
+                    <span>{selectedDatabases.length} Repositories</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
                   </button>
 
-                  {/* Model Selector Popover */}
-                  {isModelPickerOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-border bg-card/95 backdrop-blur-xl p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="px-2 py-1.5 border-b border-border/50 flex items-center justify-between">
-                        <span className="text-xs font-bold text-foreground">Select AI Model</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">5 Engines Active</span>
+                  {isDbMenuOpen && (
+                    <div className="absolute left-0 bottom-full mb-2 w-64 rounded-xl border border-border bg-card p-2 shadow-xl z-50 space-y-1">
+                      <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase">
+                        Select Literature Sources
                       </div>
-                      <div className="space-y-1 mt-1 max-h-56 overflow-y-auto">
-                        {AVAILABLE_MODELS.map((m) => (
+                      {AVAILABLE_DATABASES.map((db) => {
+                        const isSelected = selectedDatabases.includes(db.id);
+                        return (
                           <button
-                            key={m.id}
-                            onClick={() => {
-                              setSelectedModelId(m.id);
-                              setIsModelPickerOpen(false);
-                            }}
-                            className={`w-full text-left p-2 rounded-xl text-xs transition-all flex items-start justify-between gap-2 ${
-                              selectedModelId === m.id
-                                ? "bg-primary/15 border border-primary/30 text-primary font-bold"
-                                : "hover:bg-muted text-foreground/90"
-                            }`}
+                            key={db.id}
+                            onClick={() => toggleDatabase(db.id)}
+                            className="w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs text-left hover:bg-muted transition-colors"
                           >
                             <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold">{m.name}</span>
-                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-muted border border-border text-muted-foreground font-mono">
-                                  {m.tag}
+                              <div className="font-semibold text-foreground flex items-center gap-1">
+                                <span>{db.name}</span>
+                                <span className="text-[10px] text-muted-foreground font-normal">
+                                  ({db.count})
                                 </span>
                               </div>
-                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{m.desc}</p>
                             </div>
-                            {selectedModelId === m.id && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
+                            {isSelected ? (
+                              <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <Square className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* 2. Database Multi-Picker Popover */}
-                <div className="relative" ref={dbPickerRef}>
+                {/* Model Selector Pill */}
+                <div className="relative">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setIsDbPickerOpen(!isDbPickerOpen);
-                      setIsModelPickerOpen(false);
-                    }}
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all shrink-0 ${
-                      selectedDatabases.length === AVAILABLE_DATABASES.length
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold"
-                        : "bg-muted/80 text-foreground border border-border"
-                    }`}
-                    title="Select connected academic databases"
+                    onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Database className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>
-                      {selectedDatabases.length === AVAILABLE_DATABASES.length
-                        ? "All 6 DBs (480M+)"
-                        : `${selectedDatabases.length} DBs Connected`}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-70" />
+                    <Bot className="h-3 w-3 text-primary" />
+                    <span>{AVAILABLE_MODELS.find((m) => m.id === selectedModelId)?.name.split(" ")[1] || "Pro"}</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
                   </button>
 
-                  {/* Database Multi-Select Popover */}
-                  {isDbPickerOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 w-80 rounded-2xl border border-border bg-card/95 backdrop-blur-xl p-2.5 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="px-1.5 py-1 border-b border-border/50 flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-foreground">Select Academic Databases</span>
-                        <div className="flex items-center gap-1 text-[11px]">
-                          <button
-                            onClick={selectAllDatabases}
-                            className="text-primary hover:underline font-semibold"
-                          >
-                            Select All
-                          </button>
-                        </div>
+                  {isModelMenuOpen && (
+                    <div className="absolute left-0 bottom-full mb-2 w-64 rounded-xl border border-border bg-card p-2 shadow-xl z-50 space-y-1">
+                      <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase">
+                        AI Reasoning Engine
                       </div>
-                      <div className="space-y-1 max-h-60 overflow-y-auto">
-                        {AVAILABLE_DATABASES.map((db) => {
-                          const isSelected = selectedDatabases.includes(db.id);
-                          return (
-                            <div
-                              key={db.id}
-                              onClick={() => toggleDatabase(db.id)}
-                              className={`p-2 rounded-xl text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
-                                isSelected
-                                  ? "bg-primary/10 border border-primary/25 text-foreground"
-                                  : "hover:bg-muted/60 text-muted-foreground opacity-70"
-                              }`}
-                            >
-                              <div className="mt-0.5 text-primary shrink-0">
-                                {isSelected ? (
-                                  <CheckSquare className="h-4 w-4 text-primary" />
-                                ) : (
-                                  <Square className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className={`font-semibold text-xs ${isSelected ? "text-foreground font-bold" : ""}`}>
-                                    {db.name}
-                                  </span>
-                                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    {db.count}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{db.desc}</p>
-                              </div>
+                      {AVAILABLE_MODELS.map((model) => (
+                        <button
+                          key={model.id}
+                          onClick={() => {
+                            setSelectedModelId(model.id);
+                            setIsModelMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs text-left transition-colors ${
+                            selectedModelId === model.id
+                              ? "bg-muted font-bold text-foreground"
+                              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          }`}
+                        >
+                          <div>
+                            <div className="font-semibold">{model.name}</div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-1">
+                              {model.desc}
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                          {selectedModelId === model.id && (
+                            <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                          )}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
-
-                {/* 3. Attach Paper */}
-                <button
-                  onClick={onOpenSearchPapers}
-                  className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                  title="Search and Attach 480M+ Papers"
-                >
-                  <Plus className="h-3.5 w-3.5 text-primary" />
-                  <span>Attach</span>
-                </button>
-
-                {/* 4. Deep Reasoning Toggle */}
-                <button
-                  onClick={() => setDeepReasoningActive(!deepReasoningActive)}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all shrink-0 ${
-                    deepReasoningActive
-                      ? "bg-indigo-500/15 text-indigo-500 border border-indigo-500/30 font-bold"
-                      : "bg-muted/40 text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Enable step-by-step mathematical reasoning"
-                >
-                  <BrainCircuit className="h-3.5 w-3.5" />
-                  <span>Reasoning</span>
-                </button>
               </div>
 
-              {/* Right Side: Right Panel Toggle & Send Button */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {onToggleRightPanel && (
-                  <button
-                    type="button"
-                    onClick={onToggleRightPanel}
-                    className={`p-2 rounded-full border transition-all text-xs ${
-                      isRightPanelOpen
-                        ? "bg-primary/10 border-primary/30 text-primary"
-                        : "bg-muted/60 border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                    title={isRightPanelOpen ? "Close Live Artifacts Panel" : "Open Live Artifacts Panel"}
-                  >
-                    {isRightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                  </button>
-                )}
-
-                {/* Send Button */}
-                <button
-                  onClick={handleSend}
-                  disabled={!inputText.trim() || loading}
-                  className={`rounded-full p-2.5 transition-all shrink-0 ${
-                    inputText.trim() && !loading
-                      ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 scale-105"
-                      : "bg-muted text-muted-foreground/40 cursor-not-allowed"
-                  }`}
-                  title="Send Message"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </button>
-              </div>
+              {/* Submit Button */}
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() || loading}
+                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-primary/90 shadow-xs"
+              >
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              </button>
             </div>
           </div>
-
-          {/* ChatGPT Disclaimer */}
-          <p className="text-center text-[10px] text-muted-foreground/60">
-            AcademicAI searches 480M+ global academic databases. Cites official DOIs &amp; verified peer-reviewed literature.
-          </p>
         </div>
       </div>
     </div>

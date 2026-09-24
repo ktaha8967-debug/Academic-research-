@@ -170,7 +170,7 @@ export default function ProjectsPage() {
       {/* Main Container */}
       <main className="mx-auto max-w-5xl w-full flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Welcome Back Hero */}
-        <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 shadow-sm relative overflow-hidden">
+        <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm relative overflow-hidden">
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
               <Sparkles className="h-3.5 w-3.5" />
@@ -183,7 +183,6 @@ export default function ProjectsPage() {
               Manage your academic research investigations, tracked citations, syntheses, and autonomous agent pipelines in one unified workspace.
             </p>
           </div>
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
         </div>
 
         {/* Create Modal Form */}
