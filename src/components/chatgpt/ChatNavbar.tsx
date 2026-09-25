@@ -175,18 +175,30 @@ export function ChatNavbar({
         </div>
       </div>
 
-      {/* Center: Active Project Indicator */}
-      {activeProject && (
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card/60 text-xs">
-          <FolderGit2 className="h-3.5 w-3.5 text-primary" />
-          <span className="font-semibold text-foreground truncate max-w-[220px]">
-            {activeProject.name}
+      {/* Center: Active Project Indicator & Live Academic Mesh Status */}
+      <div className="flex items-center gap-3">
+        {activeProject && (
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card/60 text-xs">
+            <FolderGit2 className="h-3.5 w-3.5 text-primary" />
+            <span className="font-semibold text-foreground truncate max-w-[220px]">
+              {activeProject.name}
+            </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+              {activeProject.activeStage || "Research"}
+            </span>
+          </div>
+        )}
+
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
-            {activeProject.activeStage || "Research"}
-          </span>
+          <span className="font-mono text-xs font-semibold">Live Scholarly Mesh</span>
+          <span className="text-muted-foreground/60">•</span>
+          <span className="text-xs">4 Fed. DBs Synced</span>
         </div>
-      )}
+      </div>
 
       {/* Action buttons */}
       <div className="flex items-center gap-2">

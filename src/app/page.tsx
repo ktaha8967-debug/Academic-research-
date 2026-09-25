@@ -7,6 +7,7 @@ import { ChatInterface } from "@/components/chatgpt/ChatInterface";
 import { AgentOutputPanel } from "@/components/chatgpt/AgentOutputPanel";
 import { PaperSearchModal } from "@/components/PaperSearchModal";
 import { SettingsModal } from "@/components/SettingsModal";
+import { AnimatedResearchBackground } from "@/components/AnimatedResearchBackground";
 import {
   ChatSession,
   loadAllChats,
@@ -361,7 +362,10 @@ export default function ChatGPTDashboard() {
   const latestAssistantMessage = [...activeChat.messages].reverse().find((m) => m.role === "assistant");
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="relative flex h-screen w-full overflow-hidden bg-background text-foreground">
+      {/* Global Interactive Academic Neural Canvas Engine (Strictly Solid Colors, No Gradients) */}
+      <AnimatedResearchBackground />
+
       {/* 1. Left Sidebar: Academic Research Workspace Navigation & Active Project */}
       <ChatSidebar
         chats={chats}

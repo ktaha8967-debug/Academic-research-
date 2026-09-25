@@ -428,7 +428,6 @@ ${clarification.suggestedInterpretations
       intent: "CLARIFICATION",
       content: clarificationMarkdown,
       sources: [],
-      sourcesUsed: 0,
       executionTimeMs: Date.now() - startTime,
       confidenceScore: 0.95,
       structuredData: {
